@@ -11,8 +11,8 @@ class SpeechModel:
         self.model_path = os.path.join(VITS_DIR, model_name.replace("/", "_"))  # Store model in VITS_DIR
         
         # Download and load the model if not already available
-        self.tokenizer = VitsTokenizer.from_pretrained(model_name)
-        self.model = VitsModel.from_pretrained(model_name)
+        self.tokenizer = VitsTokenizer.from_pretrained(model_name, cache_dir=VITS_DIR)
+        self.model = VitsModel.from_pretrained(model_name, cache_dir=VITS_DIR)
 
         print(f"VITS Model loaded successfully: {model_name}")
 

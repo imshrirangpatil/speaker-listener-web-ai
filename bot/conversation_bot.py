@@ -1,6 +1,7 @@
 import os
 import json
 import random
+import sys
 from datetime import datetime
 import pandas as pd
 from bot.character_manager import select_character
@@ -16,7 +17,7 @@ import traceback
 
 
 class ConversationBot:
-    def __init__(self, llm_provider="gemini"):
+    def __init__(self, character_type=None, llm_provider="gemini"):
         """Initialize chatbot with configurable LLM provider and universal paths."""
         if llm_provider not in LLM_CONFIG:
             raise ValueError(f"Invalid LLM provider: {llm_provider}")
@@ -24,10 +25,16 @@ class ConversationBot:
         self.llm_api = LLMApi(provider=self.llm_provider)
         self.conversation_history = []
         self.session_filename = os.path.join(CONVERSATION_DIR, f"conversation_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
-        self.character = select_character()
-        self.character_type = self.character["type"]
+        # self.character = select_character()
+
+        if character_type:
+            self.character_type = character_type
+            self.character = {"type": character_type}  # create dummy dict
+        else:
+            self.character = select_character()
+            self.character_type = self.character["type"]
+
         self.current_emotion = "neutral"
-        self.conversation_history = []
         self.speaker_listener_role = "listener"
         self.turn_count = 0
 

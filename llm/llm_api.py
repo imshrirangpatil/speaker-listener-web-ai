@@ -1,6 +1,6 @@
 import os
 import sys
-from openai import OpenAI
+# from openai import OpenAI
 from dotenv import load_dotenv
 import google.generativeai as genai
 from config import LLM_CONFIG
@@ -19,7 +19,7 @@ class LLMApi:
     def get_api_key(self):
         """Retrieve API keys based on the selected provider"""
         keys = {
-            "openai": os.getenv("CHATGPT_API"),
+            "openai": os.getenv("OPENAI_API_KEY"),
             "deepseek": os.getenv("DEEPSEEKAPI"),
             "grok": os.getenv("GROK_API"),
             "gemini": os.getenv("GEMINI_API")
@@ -29,11 +29,11 @@ class LLMApi:
     def get_client(self):
         """Return the corresponding API client"""
         if self.provider == "openai":
-            return OpenAI(api_key=self.api_key)
+            return genai(api_key=self.api_key)
         elif self.provider == "deepseek":
-            return OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com/v1")
+            return genai(api_key=self.api_key, base_url="https://api.deepseek.com/v1")
         elif self.provider == "grok":
-            return OpenAI(api_key=self.api_key, base_url="https://api.x.ai/v1")
+            return genai(api_key=self.api_key, base_url="https://api.x.ai/v1")
         elif self.provider == "gemini":
             genai.configure(api_key=self.api_key)
             return genai

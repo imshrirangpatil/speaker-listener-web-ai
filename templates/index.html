@@ -1,9 +1,212 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Flask App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Charisma Counselor</title>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    header, footer {
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 0;
+    }
+
+    h3 {
+      color: #d3d3d3;
+      font-weight: normal;
+      margin-top: 5px;
+    }
+
+    #page-container {
+      margin-top: 60px;
+    }
+
+    .chat-bubble {
+      margin: 60px auto;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background-color: #4CAF50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 0 30px rgba(76, 175, 80, 0.6);
+      animation: pulse 2s infinite;
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 30px rgba(76, 175, 80, 0.6); }
+      50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(76, 175, 80, 0.9); }
+      100% { transform: scale(1); box-shadow: 0 0 30px rgba(76, 175, 80, 0.6); }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    select, #create-button {
+      padding: 12px;
+      font-size: 16px;
+      margin: 20px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    #create-button {
+      background-color: #4CAF50;
+      color: white;
+      width: 200px;
+      height: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    #chat-box {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      background: #2c2c2c;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: left;
+      display: none;
+    }
+
+    .chat-message {
+      margin: 10px 0;
+      padding: 10px 15px;
+      border-radius: 8px;
+      max-width: 75%;
+    }
+
+    .chat-message.user {
+      background: #009688;
+      align-self: flex-end;
+      color: white;
+    }
+
+    .chat-message.bot {
+      background: #555;
+      color: white;
+      align-self: flex-start;
+    }
+
+    footer {
+      margin-top: 60px;
+      font-size: 14px;
+      color: #aaa;
+    }
+
+    footer a {
+      color: #5ced73;
+      text-decoration: none;
+    }
+  </style>
 </head>
 <body>
-    <h1>Hello from Flask!</h1>
+
+<header>
+    <div style="text-align: center; padding: 30px 0;">
+      <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" />
+      <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
+    </div>
+</header>
+
+<div id="page-container">
+  <!-- Initial setup UI -->
+  <div id="setup-ui">
+    <select id="characterSelect">
+      <option value="">-- Select Character --</option>
+      <option value="optimistic">Optimistic</option>
+      <option value="neutral">Neutral</option>
+      <option value="pessimistic">Pessimistic</option>
+    </select>
+    <br>
+    <button id="create-button" onclick="startSession()">Start a Session</button>
+  </div>
+
+  <!-- Big animated bubble shown after session start -->
+  <div id="voice-bubble" class="chat-bubble hidden">
+    🎤
+  </div>
+
+  <!-- Chatbox appears at bottom -->
+  <div id="chat-box"></div>
+</div>
+
+<footer>
+  <p>
+    <a href="https://github.com/r-nisweesi/CounselorProject/" target="_blank">
+      <i class="fab fa-github"></i> View on GitHub
+    </a>
+  </p>
+  <p>Developers:</p>
+  <p class="developer-names">Nadir Isweesi, Shri</p>
+</footer>
+
+<script>
+  function startSession() {
+    const selected = document.getElementById('characterSelect').value;
+    if (!selected) {
+      alert("Please select a character type.");
+      return;
+    }
+
+    fetch("/start-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character: selected })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "success") {
+        // Hide setup UI
+        document.getElementById("setup-ui").style.display = "none";
+
+        // Show animated bubble
+        document.getElementById("voice-bubble").classList.remove("hidden");
+
+        // Show chat box
+        const chatBox = document.getElementById("chat-box");
+        chatBox.style.display = "flex";
+        chatBox.style.flexDirection = "column";
+
+        // Optionally start a dummy animation or message
+        addMessage("Charisma Bot is now listening...", "bot");
+      } else {
+        alert("❌ " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error("Bot launch failed:", err);
+      alert("Something went wrong.");
+    });
+  }
+
+  function addMessage(text, sender) {
+    const chatBox = document.getElementById("chat-box");
+    const message = document.createElement("div");
+    message.className = `chat-message ${sender}`;
+    message.textContent = text;
+    chatBox.appendChild(message);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+</script>
+
 </body>
 </html>

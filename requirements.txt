@@ -1,6 +1,9 @@
 # Core Python Dependencies
 python-dotenv      # Environment variable management
-pandas            # Data handling and conversation logging
+
+pandas>=1.5,<2.0
+numpy>=1.24,<1.26
+scipy>=1.10,<2.0
 
 # Flask (for API-based interaction)
 Flask
@@ -16,16 +19,12 @@ speechrecognition # Google Speech-to-Text
 pyaudio        # Audio input/output
 sounddevice        # Real-time audio playback
 pyttsx3             # Offline text-to-speech
-TTS               # Coqui-AI VITS-based TTS
+TTS==0.22.0               # Coqui-AI VITS-based TTS
 
 # Testing & Debugging
 pytest             # Unit testing
 coverage           # Test coverage reports
 
-# Miscellaneous Utilities
-numpy             # Used for speech synthesis
-
-scipy
 deepspeed
 huggingface_hub
 matplotlib
@@ -64,7 +63,7 @@ opencc
 MeCab
 transformers
 hangul_romanize
-spacy
+spacy==3.8.3
 six
 faster_whisper
 mutagen

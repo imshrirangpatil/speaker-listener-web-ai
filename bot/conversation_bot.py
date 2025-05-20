@@ -96,7 +96,7 @@ class ConversationBot:
                 # Save conversation at every turn
                 self.save_conversation()
 
-                if self.turn_count >= 3:  # Switch roles after 3 turns
+                if self.turn_count >= 1:  # Switch roles after 3 turns
                     self.switch_roles()
                     return True
 
@@ -154,7 +154,7 @@ class ConversationBot:
                     speak_text("That's not quite what I said. Please try to paraphrase again.")
                     continue  # Re-prompt without breaking the loop
 
-                if self.turn_count >= 3:  # Switch roles after 3 turns
+                if self.turn_count >= 1:  # Switch roles after 3 turns
                     self.switch_roles()
                     return True
 

@@ -68,5 +68,13 @@ def handle_bot_message(data):
     print(f"[BOT] {bot_text}")
     emit('new_message', {'text': bot_text, 'sender': 'bot'}, broadcast=True)
 
+def emit_bot_role(role):
+    """
+    Emit the bot's current role to update the UI emoji + color.
+    Role should be 'speaker' or 'listener'.
+    """
+    if role in ["speaker", "listener"]:
+        socketio.emit('bot_role', {'role': role}, broadcast=True)
+
 if __name__ == "__main__":
     socketio.run(app, debug=True)

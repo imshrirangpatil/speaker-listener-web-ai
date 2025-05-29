@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Charisma Counselor</title>
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     body {
       background-color: #1a1a1a;
@@ -19,45 +20,41 @@
       padding: 20px;
     }
 
-    h1 {
-      font-size: 2.5em;
-      margin-bottom: 0;
-    }
-
-    h3 {
-      color: #d3d3d3;
-      font-weight: normal;
-      margin-top: 5px;
-    }
-
     #page-container {
-      margin-top: 60px;
+      margin-top: 40px;
     }
 
     .chat-bubble {
-      margin: 60px auto;
-      width: 200px;
-      height: 200px;
+      margin: 40px auto;
+      width: 160px;
+      height: 160px;
       border-radius: 50%;
-      background-color: #4CAF50;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      box-shadow: 0 0 30px rgba(76, 175, 80, 0.6);
+      font-size: 48px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
       animation: pulse 2s infinite;
-      transition: opacity 0.5s ease-in-out;
+      transition: background-color 0.4s, box-shadow 0.4s;
+    }
+
+    .speaker {
+      background-color: #4CAF50;
+      box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
+    }
+
+    .listener {
+      background-color: #2196F3;
+      box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
     }
 
     @keyframes pulse {
-      0% { transform: scale(1); box-shadow: 0 0 30px rgba(76, 175, 80, 0.6); }
-      50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(76, 175, 80, 0.9); }
-      100% { transform: scale(1); box-shadow: 0 0 30px rgba(76, 175, 80, 0.6); }
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
 
-    .hidden {
-      display: none;
-    }
+    .hidden { display: none; }
 
     select, #create-button {
       padding: 12px;
@@ -121,14 +118,13 @@
 <body>
 
 <header>
-    <div style="text-align: center; padding: 30px 0;">
-      <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" />
-      <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
-    </div>
+  <div style="text-align: center; padding: 30px 0;">
+    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" />
+    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
+  </div>
 </header>
 
 <div id="page-container">
-  <!-- Initial setup UI -->
   <div id="setup-ui">
     <select id="characterSelect">
       <option value="">-- Select Character --</option>
@@ -140,12 +136,10 @@
     <button id="create-button" onclick="startSession()">Start a Session</button>
   </div>
 
-  <!-- Big animated bubble shown after session start -->
-  <div id="voice-bubble" class="chat-bubble hidden">
-    🎤
+  <div id="voice-bubble" class="chat-bubble speaker hidden">
+    <span id="role-icon">🎤</span>
   </div>
 
-  <!-- Chatbox appears at bottom -->
   <div id="chat-box"></div>
 </div>
 
@@ -156,7 +150,7 @@
     </a>
   </p>
   <p>Developers:</p>
-  <p class="developer-names">Nadir Isweesi, Shri</p>
+  <p class="developer-names">Shrirang Patil, Nadir</p>
 </footer>
 
 <script>
@@ -175,18 +169,16 @@
     .then(res => res.json())
     .then(data => {
       if (data.status === "success") {
-        // Hide setup UI
         document.getElementById("setup-ui").style.display = "none";
 
-        // Show animated bubble
-        document.getElementById("voice-bubble").classList.remove("hidden");
+        const bubble = document.getElementById("voice-bubble");
+        bubble.classList.remove("hidden");
+        // setBotRole("listener");
 
-        // Show chat box
         const chatBox = document.getElementById("chat-box");
         chatBox.style.display = "flex";
         chatBox.style.flexDirection = "column";
 
-        // Optionally start a dummy animation or message
         addMessage("Charisma Bot is now listening...", "bot");
       } else {
         alert("❌ " + data.message);
@@ -198,6 +190,22 @@
     });
   }
 
+  function setBotRole(role) {
+    console.log("Switching role to:", role);
+    const bubble = document.getElementById("voice-bubble");
+    const icon = document.getElementById("role-icon");
+
+    if (role === "speaker") {
+      bubble.classList.remove("listener");
+      bubble.classList.add("speaker");
+      icon.textContent = "🎤";
+    } else {
+      bubble.classList.remove("speaker");
+      bubble.classList.add("listener");
+      icon.textContent = "🎧";
+    }
+  }
+
   function addMessage(text, sender) {
     const chatBox = document.getElementById("chat-box");
     const message = document.createElement("div");
@@ -206,6 +214,17 @@
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
   }
+
+  // Optionally, change roles dynamically from elsewhere
+  // setBotRole("speaker"); or setBotRole("listener");
+  const socket = io();
+
+// Listen for role update events from server
+  socket.on("bot_role", (data) => {
+    if (data.role === "speaker" || data.role === "listener") {
+      setBotRole(data.role);
+    }
+  });
 </script>
 
 </body>

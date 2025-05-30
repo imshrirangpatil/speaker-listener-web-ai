@@ -25,7 +25,7 @@
     }
 
     .chat-bubble {
-      margin: 40px auto;
+      margin: 40px auto 10px;
       width: 160px;
       height: 160px;
       border-radius: 50%;
@@ -74,33 +74,45 @@
     }
 
     #chat-box {
-      width: 100%;
-      max-width: 700px;
-      margin: 0 auto;
-      background: #2c2c2c;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: left;
-      display: none;
-    }
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  background: #2c2c2c;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: left;
+  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
 
-    .chat-message {
-      margin: 10px 0;
-      padding: 10px 15px;
-      border-radius: 8px;
-      max-width: 75%;
-    }
+.chat-message {
+  padding: 10px 15px;
+  border-radius: 12px;
+  max-width: 70%;
+  word-wrap: break-word;
+  display: inline-block;
+}
 
-    .chat-message.user {
-      background: #009688;
-      align-self: flex-end;
-      color: white;
-    }
+.chat-message.bot {
+  background-color: #444;
+  color: #fff;
+  align-self: flex-start;
+  border-top-left-radius: 0;
+}
 
-    .chat-message.bot {
-      background: #555;
-      color: white;
-      align-self: flex-start;
+.chat-message.user {
+  background-color: #00bfa5;
+  color: white;
+  align-self: flex-end;
+  border-top-right-radius: 0;
+}
+
+    #role-labels {
+      margin-top: 12px;
+      color: #cccccc;
+      font-size: 16px;
     }
 
     footer {
@@ -140,6 +152,8 @@
     <span id="role-icon">🎤</span>
   </div>
 
+  <div id="role-labels"></div>
+
   <div id="chat-box"></div>
 </div>
 
@@ -173,7 +187,6 @@
 
         const bubble = document.getElementById("voice-bubble");
         bubble.classList.remove("hidden");
-        // setBotRole("listener");
 
         const chatBox = document.getElementById("chat-box");
         chatBox.style.display = "flex";
@@ -191,7 +204,6 @@
   }
 
   function setBotRole(role) {
-    console.log("Switching role to:", role);
     const bubble = document.getElementById("voice-bubble");
     const icon = document.getElementById("role-icon");
 
@@ -206,6 +218,20 @@
     }
   }
 
+  function updateRoleLabels(botRole, userRole) {
+    const container = document.getElementById("role-labels");
+    if (!container) return;
+
+    container.innerHTML = `
+      <p><strong>🤖 Bot:</strong> ${capitalize(botRole)}</p>
+      <p><strong>🧑 You:</strong> ${capitalize(userRole)}</p>
+    `;
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
   function addMessage(text, sender) {
     const chatBox = document.getElementById("chat-box");
     const message = document.createElement("div");
@@ -215,16 +241,27 @@
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  // Optionally, change roles dynamically from elsewhere
-  // setBotRole("speaker"); or setBotRole("listener");
   const socket = io();
 
-// Listen for role update events from server
-  socket.on("bot_role", (data) => {
-    if (data.role === "speaker" || data.role === "listener") {
-      setBotRole(data.role);
-    }
+  socket.on("bot_user_roles", (data) => {
+    const botRole = data.bot_role;
+    const userRole = data.user_role;
+
+    console.log(`Bot: ${botRole}, User: ${userRole}`);
+    setBotRole(botRole);
+    updateRoleLabels(botRole, userRole);
   });
+
+  socket.on("new_message", (data) => {
+  console.log("[SocketIO] new_message received:", data);
+  
+  if (!data || !data.text || !data.sender) {
+    console.warn("Malformed message data:", data);
+    return;
+  }
+
+  addMessage(data.text, data.sender);
+});
 </script>
 
 </body>

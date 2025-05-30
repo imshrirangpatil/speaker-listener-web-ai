@@ -1,0 +1,85 @@
+# Core Python Dependencies
+python-dotenv      # Environment variable management
+
+pandas>=1.5,<2.0
+numpy>=1.24,<1.26
+scipy>=1.10,<2.0
+
+# Flask (for API-based interaction)
+Flask
+
+# LLM API Integration
+openai           # OpenAI API (ChatGPT)
+google-generativeai  # Google Gemini AI API
+httpx            # Required for OpenAI API
+
+# Speech Recognition & Synthesis
+vosk              # Offline speech recognition
+speechrecognition # Google Speech-to-Text
+pyaudio        # Audio input/output
+sounddevice        # Real-time audio playback
+pyttsx3             # Offline text-to-speech
+TTS==0.22.0               # Coqui-AI VITS-based TTS
+
+# Testing & Debugging
+pytest             # Unit testing
+coverage           # Test coverage reports
+
+deepspeed
+huggingface_hub
+matplotlib
+encodec
+pyttsx3
+cutlet
+umap_learn
+numpy
+g2pkk
+fsspec
+gradio
+packaging
+setuptools
+librosa
+tokenizers
+openai
+gruut_ipa
+num2words
+bnunicodenormalizer
+pysbd
+tqdm
+einops
+onnxruntime
+protobuf
+PyAudio
+pypinyin
+python-dotenv
+SpeechRecognition
+soundfile
+k_diffusion
+anyascii
+torchaudio
+inflect
+Cython
+opencc
+MeCab
+transformers
+hangul_romanize
+spacy==3.8.3
+six
+faster_whisper
+mutagen
+coqpit
+Flask
+clearml
+pandas
+jamo
+PyYAML
+seaborn
+Requests
+torch
+kaggle
+vosk
+absl_py
+bnnumerizer
+jieba
+JPype1
+gruut

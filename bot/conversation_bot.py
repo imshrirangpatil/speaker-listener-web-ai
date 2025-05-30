@@ -92,11 +92,14 @@ class ConversationBot:
                 #     "emotion": self.current_emotion
                 # })
 
-                paraphrased = speak_text(paraphrase(user_input))
+                paraphrased = paraphrase(user_input)
+                speak_text(paraphrased)
                 self.emit_message(paraphrased, "bot")
                 speak_text("Did I understand correctly?")
                 self.emit_message("Did I understand correctly?", "bot")
                 confirmation = listen_for_speech()
+                if confirmation:
+                    self.emit_message(confirmation, "user")
 
                 if confirmation and self.is_confirmation(confirmation):
                     response = generate_response(user_input, self.character_type)
@@ -152,8 +155,8 @@ class ConversationBot:
                 self.emit_message(user_response, "user")
 
                 if self.is_goodbye(user_response):
-                    speak_text("It was nice talking to you!")
-                    self.emit_message("It was nice talking to you!", "bot")
+                    speak_text("It was nice talking to you! Goodbye!")
+                    self.emit_message("It was nice talking to you! Goodbye!", "bot")
                     self.save_conversation()
                     return False
 
@@ -221,7 +224,7 @@ class ConversationBot:
 
         print(f"Switching roles: Bot = {self.bot_role}, User = {self.user_role}")
         speak_text(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.")
-
+        self.emit_message(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.", "bot")
         # Emit new bot role to frontend
         self.emit_role(self.bot_role)
         self.turn_count = 0

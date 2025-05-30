@@ -74,40 +74,40 @@
     }
 
     #chat-box {
-  width: 100%;
-  max-width: 700px;
-  margin: 0 auto;
-  background: #2c2c2c;
-  padding: 20px;
-  border-radius: 12px;
-  text-align: left;
-  display: none;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
+      width: 100%;
+      max-width: 700px;
+      margin: 20px auto;
+      background: #2c2c2c;
+      padding: 20px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
 
-.chat-message {
-  padding: 10px 15px;
-  border-radius: 12px;
-  max-width: 70%;
-  word-wrap: break-word;
-  display: inline-block;
-}
+    .chat-message {
+      padding: 10px 15px;
+      border-radius: 12px;
+      max-width: 70%;
+      word-wrap: break-word;
+      display: inline-block;
+    }
 
-.chat-message.bot {
-  background-color: #444;
-  color: #fff;
-  align-self: flex-start;
-  border-top-left-radius: 0;
-}
+    .chat-message.bot {
+      background-color: #444;
+      color: #fff;
+      align-self: flex-start;
+      border-top-left-radius: 0;
+    }
 
-.chat-message.user {
-  background-color: #00bfa5;
-  color: white;
-  align-self: flex-end;
-  border-top-right-radius: 0;
-}
+    .chat-message.user {
+      background-color: #4CAF50;
+      color: white;
+      align-self: flex-end;
+      border-top-right-radius: 0;
+    }
 
     #role-labels {
       margin-top: 12px;
@@ -155,6 +155,10 @@
   <div id="role-labels"></div>
 
   <div id="chat-box"></div>
+
+  <div class="text-center">
+    <button onclick="downloadChat()" class="btn btn-outline-light mt-3">Download Chat</button>
+  </div>
 </div>
 
 <footer>
@@ -168,6 +172,10 @@
 </footer>
 
 <script>
+  const socket = io();
+  const chatBox = document.getElementById('chat-box');
+  const chatLog = [];
+
   function startSession() {
     const selected = document.getElementById('characterSelect').value;
     if (!selected) {
@@ -184,15 +192,10 @@
     .then(data => {
       if (data.status === "success") {
         document.getElementById("setup-ui").style.display = "none";
-
         const bubble = document.getElementById("voice-bubble");
         bubble.classList.remove("hidden");
-
-        const chatBox = document.getElementById("chat-box");
         chatBox.style.display = "flex";
-        chatBox.style.flexDirection = "column";
-
-        addMessage("Charisma Bot is now listening...", "bot");
+        addMessage("Charisma Bot is now launching...", "bot");
       } else {
         alert("❌ " + data.message);
       }
@@ -221,7 +224,6 @@
   function updateRoleLabels(botRole, userRole) {
     const container = document.getElementById("role-labels");
     if (!container) return;
-
     container.innerHTML = `
       <p><strong>🤖 Bot:</strong> ${capitalize(botRole)}</p>
       <p><strong>🧑 You:</strong> ${capitalize(userRole)}</p>
@@ -233,36 +235,34 @@
   }
 
   function addMessage(text, sender) {
-    const chatBox = document.getElementById("chat-box");
     const message = document.createElement("div");
     message.className = `chat-message ${sender}`;
     message.textContent = text;
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
+    chatLog.push(`${sender.toUpperCase()}: ${text}`);
   }
 
-  const socket = io();
+  function downloadChat() {
+    const blob = new Blob([chatLog.join("\n")], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = "charisma_chat_log.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   socket.on("bot_user_roles", (data) => {
-    const botRole = data.bot_role;
-    const userRole = data.user_role;
-
-    console.log(`Bot: ${botRole}, User: ${userRole}`);
-    setBotRole(botRole);
-    updateRoleLabels(botRole, userRole);
+    setBotRole(data.bot_role);
+    updateRoleLabels(data.bot_role, data.user_role);
   });
 
   socket.on("new_message", (data) => {
-  console.log("[SocketIO] new_message received:", data);
-  
-  if (!data || !data.text || !data.sender) {
-    console.warn("Malformed message data:", data);
-    return;
-  }
-
-  addMessage(data.text, data.sender);
-});
+    if (data && data.text && data.sender) {
+      addMessage(data.text, data.sender);
+    }
+  });
 </script>
-
 </body>
 </html>

@@ -1,7 +1,6 @@
 import os
 import vosk
 import json
-# import pyaudio
 import urllib.request
 import tarfile
 from config import VOSK_MODEL_PATH, VOSK_MODEL_URL  # You need to define VOSK_MODEL_URL in your config

@@ -73,12 +73,15 @@ def relay_message(data):
     print("[SERVER] Relaying message:", data)
     emit('new_message', data, broadcast=True)
 
-def emit_bot_user_roles(bot_role, user_role):
+@socketio.on('bot_user_roles')
+def emit_bot_user_roles(data):
     """
     Emit both bot and user roles to the frontend.
     """
+    bot_role = data.get("bot_role")
+    user_role = data.get("user_role")
     if bot_role in ["speaker", "listener"] and user_role in ["speaker", "listener"]:
-        socketio.emit('bot_user_roles', {
+        emit('bot_user_roles', {
             'bot_role': bot_role,
             'user_role': user_role
         }, broadcast=True)

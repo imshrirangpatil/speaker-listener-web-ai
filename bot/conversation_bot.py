@@ -222,7 +222,7 @@ class ConversationBot:
         self.bot_role = "listener" if self.bot_role == "speaker" else "speaker"
         self.user_role = "speaker" if self.bot_role == "listener" else "listener"
 
-        print(f"Switching roles: Bot = {self.bot_role}, User = {self.user_role}")
+        # print(f"Switching roles: Bot = {self.bot_role}, User = {self.user_role}")
         speak_text(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.")
         self.emit_message(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.", "bot")
         # Emit new bot role to frontend

@@ -1,7 +1,7 @@
 import os
 import vosk
 import json
-import pyaudio
+# import pyaudio
 import urllib.request
 import tarfile
 from config import VOSK_MODEL_PATH, VOSK_MODEL_URL  # You need to define VOSK_MODEL_URL in your config
@@ -46,19 +46,19 @@ class SpeechDetector:
         else:
             print(f"VOSK model already cached at {self.vosk_model_path}.")
 
-    def detect_speech(self):
-        """Capture and process speech using VOSK."""
-        audio = pyaudio.PyAudio()
-        stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8192)
-        stream.start_stream()
+    # def detect_speech(self):
+    #     """Capture and process speech using VOSK."""
+    #     audio = pyaudio.PyAudio()
+    #     stream = audio.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8192)
+    #     stream.start_stream()
 
-        print("Listening...")
-        while True:
-            data = stream.read(4096, exception_on_overflow=False)
-            if len(data) == 0:
-                break
-            if self.recognizer.AcceptWaveform(data):
-                result = json.loads(self.recognizer.Result())
-                return result.get("text", "")
+    #     print("Listening...")
+    #     while True:
+    #         data = stream.read(4096, exception_on_overflow=False)
+    #         if len(data) == 0:
+    #             break
+    #         if self.recognizer.AcceptWaveform(data):
+    #             result = json.loads(self.recognizer.Result())
+    #             return result.get("text", "")
 
-        return None
+    #     return None

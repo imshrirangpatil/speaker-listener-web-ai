@@ -10,4 +10,4 @@ Requests==2.32.3
 scipy==1.15.3
 SpeechRecognition==3.14.1
 torch==2.6.0
-transformers==4.50.0.dev0
+transformers==4.50.0

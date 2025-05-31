@@ -87,26 +87,34 @@
       overflow-y: auto;
     }
 
+    @keyframes fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
     .chat-message {
       padding: 10px 15px;
       border-radius: 12px;
       max-width: 70%;
       word-wrap: break-word;
       display: inline-block;
+      animation: fade-in 2s;
     }
 
     .chat-message.bot {
-      background-color: #444;
-      color: #fff;
-      align-self: flex-start;
-      border-top-left-radius: 0;
-    }
-
-    .chat-message.user {
       background-color: #4CAF50;
       color: white;
       align-self: flex-end;
       border-top-right-radius: 0;
+      text-align: right;
+    }
+
+    .chat-message.user {
+      background-color: #444;
+      color: #fff;
+      align-self: flex-start;
+      border-top-left-radius: 0;
+      text-align: left;
     }
 
     .btn {

@@ -16,10 +16,6 @@
       text-align: center;
     }
 
-    header, footer {
-      padding: 20px;
-    }
-
     #page-container {
       margin-top: 40px;
     }
@@ -83,7 +79,7 @@
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: 400px;
+      height: 300px;
       overflow-y: auto;
     }
 
@@ -102,18 +98,18 @@
     }
 
     .chat-message.bot {
-      background-color: #4CAF50;
-      color: white;
-      align-self: flex-end;
-      border-top-right-radius: 0;
-      text-align: right;
-    }
-
-    .chat-message.user {
       background-color: #444;
       color: #fff;
       align-self: flex-start;
       border-top-left-radius: 0;
+      text-align: left;
+    }
+
+    .chat-message.user {
+      background-color: #4CAF50;
+      color: white;
+      align-self: flex-end;
+      border-top-right-radius: 0;
       text-align: left;
     }
 
@@ -135,6 +131,7 @@
     }
 
     footer {
+      padding: 20px;
       margin-top: 60px;
       font-size: 14px;
       color: #aaa;
@@ -144,15 +141,29 @@
       color: #5ced73;
       text-decoration: none;
     }
+
+    header {
+      background-color: #222;
+      color: white;
+      padding: 5px 50px;
+      align-items: center;
+    }
+
+    header ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <div style="text-align: center; padding: 30px 0;">
-    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" />
-    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
-  </div>
+  <ul>
+    <li><img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" /></li>
+    <li><h2 style="color: #d3d3d3;">An AI-powered Speaker-Listener Counselor</h3></li>
+  </ul>
 </header>
 
 <div id="page-container">
@@ -172,7 +183,7 @@
       <span id="role-icon">🎤</span>
     </div>
   
-    <div id="role-labels"></div>
+    <div id="role-labels"><p>&nbsp;</p><p>&nbsp;</p></div>
   
     <div id="chat-box"></div>
   
@@ -262,7 +273,7 @@
   function addMessage(text, sender) {
     const message = document.createElement("div");
     message.className = `chat-message ${sender}`;
-    message.textContent = text;
+    message.textContent = capitalize(text);
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
     chatLog.push(`${sender.toUpperCase()}: ${text}`);

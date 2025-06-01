@@ -14,7 +14,7 @@ torch==2.6.0
 transformers==4.50.0
 gunicorn==21.2.0
 eventlet==0.33.3
-
+redis
 openai
 google-generativeai
 httpx

@@ -28,7 +28,6 @@ deepspeed
 huggingface_hub
 matplotlib
 encodec
-pyttsx3
 cutlet
 umap_learn
 numpy

@@ -243,18 +243,18 @@
   }
 
   function setBotRole(role) {
-    const bubble = document.getElementById("voice-bubble");
-    const icon = document.getElementById("role-icon");
+    // const bubble = document.getElementById("voice-bubble");
+    // const icon = document.getElementById("role-icon");
 
-    if (role === "speaker") {
-      bubble.classList.remove("listener");
-      bubble.classList.add("speaker");
-      icon.textContent = "🎤";
-    } else {
-      bubble.classList.remove("speaker");
-      bubble.classList.add("listener");
-      icon.textContent = "🎧";
-    }
+    // if (role === "speaker") {
+    //   bubble.classList.remove("listener");
+    //   bubble.classList.add("speaker");
+    //   icon.textContent = "🎤";
+    // } else {
+    //   bubble.classList.remove("speaker");
+    //   bubble.classList.add("listener");
+    //   icon.textContent = "🎧";
+    // }
   }
 
   function updateRoleLabels(botRole, userRole) {
@@ -277,6 +277,20 @@
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
     chatLog.push(`${sender.toUpperCase()}: ${text}`);
+  }
+
+  function updateMicStatus(activated) {
+    const bubble = document.getElementById("voice-bubble");
+    const icon = document.getElementById("role-icon");
+    if (activated) {
+      bubble.classList.remove("listener");
+      bubble.classList.add("speaker");
+      icon.textContent = "🎤";
+    } else {
+      bubble.classList.remove("speaker");
+      bubble.classList.add("listener");
+      icon.textContent = "🔊";
+    }
   }
 
   function downloadChat() {
@@ -302,6 +316,10 @@
     if (data && data.text && data.sender) {
       addMessage(data.text, data.sender);
     }
+  });
+
+  socket.on("mic_activated", (data) => {
+    updateMicStatus(data.activated);
   });
 </script>
 </body>

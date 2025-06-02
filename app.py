@@ -86,6 +86,17 @@ def emit_bot_user_roles(data):
             'user_role': user_role
         }, broadcast=True)
 
+@socketio.on('mic_activated')
+def emit_mic_activated(data):
+    """
+    Emit mic activation status to the frontend.
+    """
+    activated = data.get("activated")
+    if activated in [True, False]:
+        emit('mic_activated', {
+            'activated': activated
+        }, broadcast=True)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

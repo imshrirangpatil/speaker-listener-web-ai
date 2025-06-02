@@ -62,7 +62,9 @@ class ConversationBot:
             self.emit_role("speaker")
 
             while True:
+                self.emit_mic_activated(True)
                 user_input = listen_for_speech()
+                self.emit_mic_activated(False)
 
                 if not user_input:
                     speak_text("I didn't catch that. Could you please repeat?")
@@ -144,8 +146,10 @@ class ConversationBot:
                 speak_text(current_statement)
                 self.emit_message(current_statement, "bot")
                 self.emit_role("listener")
-
+                
+                self.emit_mic_activated(True)
                 user_response = listen_for_speech()
+                self.emit_mic_activated(False)
 
                 if not user_response:
                     speak_text("I didn't catch that. Could you please repeat?")
@@ -238,6 +242,15 @@ class ConversationBot:
                 })
         except Exception as e:
             print(f"[ERROR] Failed to emit bot role: {e}")
+    
+    def emit_mic_activated(self, activated):
+        try:
+            if sio.connected:
+                sio.emit("mic_activated", {
+                    "activated": activated
+                })
+        except Exception as e:
+            print(f"[ERROR] Failed to emitmic activated: {e}")
 
     def emit_message(self, message, sender):
         try:

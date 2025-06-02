@@ -34,14 +34,23 @@
       transition: background-color 0.4s, box-shadow 0.4s;
     }
 
-    .speaker {
+    .mic-on {
       background-color: #4CAF50;
       box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
     }
 
-    .listener {
+    .mic-off {
       background-color: #2196F3;
       box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
+    }
+
+    #voice-bubble {
+      transition: background-color 1.0s ease, box-shadow 1.0s ease;
+    }
+
+    .launching {
+      background-color: #9374ef;
+      box-shadow: 0 0 30px rgba(147, 116, 239, 0.7);
     }
 
     @keyframes pulse {
@@ -179,8 +188,8 @@
   </div>
 
   <div id="initially-hidden" class="hidden">
-    <div id="voice-bubble" class="chat-bubble speaker">
-      <span id="role-icon">🎤</span>
+    <div id="voice-bubble" class="chat-bubble launching">
+      <span id="role-icon"></span>
     </div>
   
     <div id="role-labels"><p>&nbsp;</p><p>&nbsp;</p></div>
@@ -283,12 +292,14 @@
     const bubble = document.getElementById("voice-bubble");
     const icon = document.getElementById("role-icon");
     if (activated) {
-      bubble.classList.remove("listener");
-      bubble.classList.add("speaker");
+      bubble.classList.remove("launching");
+      bubble.classList.remove("mic-off");
+      bubble.classList.add("mic-on");
       icon.textContent = "🎤";
     } else {
-      bubble.classList.remove("speaker");
-      bubble.classList.add("listener");
+      bubble.classList.remove("launching");
+      bubble.classList.remove("mic-on");
+      bubble.classList.add("mic-off");
       icon.textContent = "🔊";
     }
   }

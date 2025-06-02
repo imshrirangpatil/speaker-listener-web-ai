@@ -57,6 +57,7 @@ class ConversationBot:
     def listener_mode(self):
         try:
             self.emit_role("listener")
+            self.emit_mic_activated(False)
             speak_text("Hello! I am Charisma Bot. You have the floor; I am listening.")
             self.emit_message("Hello! I am Charisma Bot. You have the floor; I am listening.", "bot")
             self.emit_role("speaker")
@@ -136,6 +137,7 @@ class ConversationBot:
     def speaker_mode(self):
         try:
             self.emit_role("speaker")
+            self.emit_mic_activated(False)
             speak_text("Hello! I am Charisma Bot. I will talk first, and you will listen.")
             self.emit_message("Hello! I am Charisma Bot. I will talk first, and you will listen.", "bot")
             self.emit_role("listener")

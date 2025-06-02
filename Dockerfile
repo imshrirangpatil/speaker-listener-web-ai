@@ -20,7 +20,7 @@ RUN pip install -r requirements.txt
 
 # Expose the port your app listens on (set to your PORT env variable in Render)
 ENV PORT 5000
-EXPOSE $PORT
+EXPOSE 5000
 
 # Start your app (adjust if your main app file is different)
 CMD ["python", "app.py"]

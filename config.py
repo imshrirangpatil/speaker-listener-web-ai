@@ -9,7 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 
 # Ensure correct data directory
-DATA_DIR = os.path.join(ROOT_DIR, "slt\data")
+DATA_DIR = os.path.join(ROOT_DIR, "data")
 MODEL_DIR = os.path.join(DATA_DIR, "models")
 VOSK_DIR = os.path.join(MODEL_DIR, "vosk")
 VITS_DIR = os.path.join(MODEL_DIR, "vits")

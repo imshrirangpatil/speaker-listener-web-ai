@@ -16,7 +16,6 @@ httpx            # Required for OpenAI API
 # Speech Recognition & Synthesis
 vosk              # Offline speech recognition
 speechrecognition # Google Speech-to-Text
-pyaudio        # Audio input/output
 sounddevice        # Real-time audio playback
 pyttsx3             # Offline text-to-speech
 TTS==0.22.0               # Coqui-AI VITS-based TTS
@@ -29,7 +28,6 @@ deepspeed
 huggingface_hub
 matplotlib
 encodec
-pyttsx3
 cutlet
 umap_learn
 numpy
@@ -49,7 +47,6 @@ tqdm
 einops
 onnxruntime
 protobuf
-PyAudio
 pypinyin
 python-dotenv
 SpeechRecognition

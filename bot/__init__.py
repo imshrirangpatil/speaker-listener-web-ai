@@ -1,5 +1,5 @@
 """
-Bot Module: Handles chatbot functionalities including conversation flow, personality management, and emotion detection.
+Bot Module: Handles bot functionalities including conversation flow, personality management, and emotion detection.
 """
 
 from .character_manager import select_character

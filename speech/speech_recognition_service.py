@@ -51,7 +51,7 @@ def listen_for_speech1():
 
         # Send to Vosk microservice
         files = {"file": open("temp_input.wav", "rb")}
-        response = requests.post("http://localhost:5001/transcribe", files=files)
+        response = requests.post("https://vosk-server-ia6k.onrender.com/transcribe", files=files)
 
         if response.status_code == 200:
             transcription = response.json().get("transcription", "")
@@ -96,7 +96,7 @@ def listen_for_speech():
         # Send to Vosk Microservice
         with open(temp_filename, "rb") as audio_file:
             files = {"file": audio_file}
-            response = requests.post("http://localhost:5001/transcribe", files=files)
+            response = requests.post("https://vosk-server-ia6k.onrender.com/transcribe", files=files)
 
         # Delete temp file after sending
         if os.path.exists(temp_filename):

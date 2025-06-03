@@ -3,7 +3,9 @@ import os
 import json
 import wave
 from vosk import Model, KaldiRecognizer
-from config import VOSK_MODEL_PATH   # <-- Import it here
+
+# Read the model path from the environment variable
+VOSK_MODEL_PATH = os.environ["VOSK_MODEL_PATH"]
 
 # Load model ONCE at server startup
 model = Model(VOSK_MODEL_PATH)
@@ -27,7 +29,9 @@ def transcribe():
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
             wf.close()
             os.remove(temp_filename)
-            return jsonify({"error": "Audio format not supported. Must be mono PCM 16-bit 16000Hz."}), 400
+            return jsonify({
+                "error": "Audio format not supported. Must be mono PCM 16-bit 16000Hz."
+            }), 400
 
         rec = KaldiRecognizer(model, wf.getframerate())
 
@@ -41,9 +45,9 @@ def transcribe():
 
         results.append(rec.FinalResult())
 
-        wf.close()  # <-- VERY IMPORTANT: Close the wave file before deleting!
+        wf.close()  # VERY IMPORTANT: close before deleting
 
-        os.remove(temp_filename)  # <-- Now Windows will allow delete!
+        os.remove(temp_filename)
 
         texts = []
         for r in results:

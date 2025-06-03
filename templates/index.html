@@ -133,12 +133,6 @@
       transition: background-color 0.3s ease;
     }
 
-    #role-labels {
-      margin-top: 12px;
-      color: #cccccc;
-      font-size: 16px;
-    }
-
     footer {
       padding: 20px;
       margin-top: 60px;
@@ -151,7 +145,7 @@
       text-decoration: none;
     }
 
-    header {
+    /* header {
       background-color: #222;
       color: white;
       padding: 5px 50px;
@@ -163,16 +157,20 @@
       display: flex;
       gap: 2rem;
       align-items: center;
-    }
+    } */
   </style>
 </head>
 <body>
 
 <header>
-  <ul>
+  <!-- <ul>
     <li><img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" /></li>
     <li><h2 style="color: #d3d3d3;">An AI-powered Speaker-Listener Counselor</h3></li>
-  </ul>
+  </ul> -->
+  <div style="text-align: center; padding: 30px 0;">
+    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
+    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
+  </div>
 </header>
 
 <div id="page-container">
@@ -191,8 +189,6 @@
     <div id="voice-bubble" class="chat-bubble launching">
       <span id="role-icon"></span>
     </div>
-  
-    <div id="role-labels"><p>&nbsp;</p><p>&nbsp;</p></div>
   
     <div id="chat-box"></div>
   
@@ -251,30 +247,6 @@
     });
   }
 
-  function setBotRole(role) {
-    // const bubble = document.getElementById("voice-bubble");
-    // const icon = document.getElementById("role-icon");
-
-    // if (role === "speaker") {
-    //   bubble.classList.remove("listener");
-    //   bubble.classList.add("speaker");
-    //   icon.textContent = "🎤";
-    // } else {
-    //   bubble.classList.remove("speaker");
-    //   bubble.classList.add("listener");
-    //   icon.textContent = "🎧";
-    // }
-  }
-
-  function updateRoleLabels(botRole, userRole) {
-    const container = document.getElementById("role-labels");
-    if (!container) return;
-    container.innerHTML = `
-      <p><strong>🤖 Bot:</strong> ${capitalize(botRole)}</p>
-      <p><strong>🧑 You:</strong> ${capitalize(userRole)}</p>
-    `;
-  }
-
   function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
@@ -317,11 +289,6 @@
   function reportBug() {
     window.open('https://docs.google.com/forms/d/e/1FAIpQLSclpPZyqVatGqPhqsv_lOdhqIoChKoQT3L9Cps3dHrclcQsjQ/viewform?usp=dialog', '_blank');
   }
-
-  socket.on("bot_user_roles", (data) => {
-    setBotRole(data.bot_role);
-    updateRoleLabels(data.bot_role, data.user_role);
-  });
 
   socket.on("new_message", (data) => {
     if (data && data.text && data.sender) {

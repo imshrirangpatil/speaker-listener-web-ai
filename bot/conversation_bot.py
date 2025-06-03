@@ -56,11 +56,9 @@ class ConversationBot:
 
     def listener_mode(self):
         try:
-            self.emit_role("listener")
             self.emit_mic_activated(False)
             speak_text("Hello! I am Charisma Bot. You have the floor; I am listening.")
             self.emit_message("Hello! I am Charisma Bot. You have the floor; I am listening.", "bot")
-            self.emit_role("speaker")
 
             while True:
                 self.emit_mic_activated(True)
@@ -106,10 +104,8 @@ class ConversationBot:
 
                 if confirmation and self.is_confirmation(confirmation):
                     response = generate_response(user_input, self.character_type)
-                    self.emit_role("speaker")
                     speak_text(response)
                     self.emit_message(response, "bot")
-                    self.emit_role("listener")
 
                     # self.conversation_history.append({
                     #     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -136,18 +132,14 @@ class ConversationBot:
 
     def speaker_mode(self):
         try:
-            self.emit_role("speaker")
             self.emit_mic_activated(False)
             speak_text("Hello! I am Charisma Bot. I will talk first, and you will listen.")
             self.emit_message("Hello! I am Charisma Bot. I will talk first, and you will listen.", "bot")
-            self.emit_role("listener")
 
             while True:
                 current_statement = generate_topic(self.character_type)
-                self.emit_role("speaker")
                 speak_text(current_statement)
                 self.emit_message(current_statement, "bot")
-                self.emit_role("listener")
                 
                 self.emit_mic_activated(True)
                 user_response = listen_for_speech()
@@ -231,19 +223,7 @@ class ConversationBot:
         # print(f"Switching roles: Bot = {self.bot_role}, User = {self.user_role}")
         speak_text(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.")
         self.emit_message(f"Let's switch roles. I will now be the {self.bot_role}, and you will be the {self.user_role}.", "bot")
-        # Emit new bot role to frontend
-        self.emit_role(self.bot_role)
         self.turn_count = 0
-
-    def emit_role(self, role):
-        try:
-            if sio.connected:
-                sio.emit("bot_user_roles", {
-                    "bot_role": self.bot_role,
-                    "user_role": self.user_role
-                })
-        except Exception as e:
-            print(f"[ERROR] Failed to emit bot role: {e}")
     
     def emit_mic_activated(self, activated):
         try:

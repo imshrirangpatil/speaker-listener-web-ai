@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY vosk_server.py /app/
-COPY config.py /app/
 COPY data/models/vosk/vosk-model-en-us-0.22 /app/data/models/vosk/vosk-model-en-us-0.22
 
 RUN pip install --upgrade pip \

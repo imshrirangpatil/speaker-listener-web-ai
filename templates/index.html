@@ -17,11 +17,11 @@
     }
 
     #page-container {
-      margin-top: 40px;
+      margin-top: 20px;
     }
 
     .chat-bubble {
-      margin: 40px auto 10px;
+      margin: 0px auto 10px;
       width: 160px;
       height: 160px;
       border-radius: 50%;
@@ -88,7 +88,7 @@
       display: flex;
       flex-direction: column;
       gap: 5px;
-      height: 300px;
+      height: 250px;
       overflow-y: auto;
     }
 
@@ -149,9 +149,9 @@
 <body>
 
 <header>
-  <div style="text-align: center; padding: 30px 0;">
+  <div style="text-align: center; padding: 30px 0 10px;">
     <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
-    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
+    <h2 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h2>
   </div>
 </header>
 
@@ -173,21 +173,19 @@
     </div>
   
     <div id="chat-box"></div>
-  
+
     <div class="text-center" style="padding-bottom: 10px;">
       <button onclick="downloadChat()" class="btn">Download Chat</button>
+      <button onclick="" class="btn">Stop/Back</button>
+      <button onclick="reportBug()" class="btn">Report a Bug</button>
     </div>
-  </div>
-
-  <div class="text-center">
-    <button onclick="reportBug()" class="btn">Report a Bug</button>
   </div>
 </div>
 
 <footer>
   <p>
     <a href="https://github.com/imshrirangpatil/speaker-listener-web-ai" target="_blank">
-      <i class="fab fa-github"></i> View on GitHub
+      View on GitHub
     </a>
   </p>
   <p>Developers:</p>
@@ -198,6 +196,7 @@
   const socket = io();
   const chatBox = document.getElementById('chat-box');
   const chatLog = [];
+  var chatDownloaded = false;
 
   function startSession() {
     const selected = document.getElementById('characterSelect').value;
@@ -259,6 +258,9 @@
   }
 
   function downloadChat() {
+    if (!confirm("Are you sure you want to download the chat?"))
+      return;
+
     const blob = new Blob([chatLog.join("\n")], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -266,10 +268,11 @@
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    chatDownloaded = true;
   }
 
   function reportBug() {
-    window.open('https://docs.google.com/forms/d/e/1FAIpQLSclpPZyqVatGqPhqsv_lOdhqIoChKoQT3L9Cps3dHrclcQsjQ/viewform?usp=dialog', '_blank');
+    window.open('https://docs.google.com/forms/d/e/1FAIpQLSdf-rvSeMAqlF_iRflrT5DP-g9Q7CJEmnkNTIIr8ouiZ2GOLw/viewform?usp=dialog', '_blank');
   }
 
   socket.on("new_message", (data) => {
@@ -280,6 +283,14 @@
 
   socket.on("mic_activated", (data) => {
     updateMicStatus(data.activated);
+  });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (!chatDownloaded) {
+      // Show prompt (some browsers ignore custom text)
+      e.preventDefault(); // Needed for some browsers
+      e.returnValue = ''; // Triggers the browser's confirmation dialog
+    }
   });
 </script>
 </body>

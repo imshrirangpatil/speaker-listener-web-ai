@@ -4,6 +4,8 @@ import zipfile
 from dotenv import load_dotenv
 load_dotenv()
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 # Define root project directory dynamically
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)

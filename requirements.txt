@@ -15,7 +15,7 @@ transformers==4.50.0
 gunicorn==21.2.0
 eventlet==0.33.3
 redis
-openai
+openai>=1.0.0
 google-generativeai
 httpx
 vosk
@@ -68,3 +68,4 @@ bnnumerizer
 jieba
 JPype1
 gruut
+PyAudio

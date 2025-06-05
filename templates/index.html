@@ -212,7 +212,7 @@
       <div class="button-container">
         <button onclick="" class="btn">Stop/Back</button>
         <button onclick="reportBug()" class="btn" >Report a Bug</button>
-        <button onclick="downloadChat()" class="btn" style="border-top-right-radius: 12px;">Download Chat</button>
+        <button onclick="downloadChat()" class="btn" style="border-bottom-right-radius: 12px;">Download Chat</button>
       </div>
       <div class="fade-overlay"></div>
       <div id="chat-box"></div>
@@ -276,7 +276,14 @@
     message.textContent = capitalize(text);
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
-    chatLog.push(`${sender.toUpperCase()}: ${text}`);
+    const now = new Date();
+    day = now.getDate().toString().padStart(2, '0');
+    month = (now.getMonth() + 1).toString().padStart(2, '0');
+    year = now.getFullYear();
+    hour = now.getHours().toString().padStart(2, '0');;
+    minute = now.getMinutes().toString().padStart(2, '0');;
+    second = now.getSeconds().toString().padStart(2, '0');;
+    chatLog.push(`${day}-${month}-${year} ${hour}:${minute}:${second} ${sender.toUpperCase()}: ${text}`);
   }
 
   function updateMicStatus(activated) {
@@ -302,7 +309,11 @@
     const blob = new Blob([chatLog.join("\n")], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "charisma_chat_log.txt";
+    const now = new Date();
+    day = now.getDate().toString().padStart(2, '0');
+    month = (now.getMonth() + 1).toString().padStart(2, '0');
+    year = now.getFullYear();
+    link.download = `charisma_chat_log_${day}_${month}_${year}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

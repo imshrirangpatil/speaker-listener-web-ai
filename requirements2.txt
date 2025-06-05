@@ -1,0 +1,16 @@
+# Core Python Dependencies
+flask
+vosk
+dotenv
+flask_socketio
+pandas
+google
+google-generativeai
+SpeechRecognition
+pyaudio
+pyttsx3
+redis
+torch
+transformers
+firebase_admin
+websocket-client

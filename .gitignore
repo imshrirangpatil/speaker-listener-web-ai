@@ -3,4 +3,5 @@ data/conversations
 data/generated_audio
 __pycache__/
 .DS_Store
+/venv
 firebase_key.json

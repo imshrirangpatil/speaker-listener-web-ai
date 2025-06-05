@@ -16,16 +16,12 @@
       text-align: center;
     }
 
-    header, footer {
-      padding: 20px;
-    }
-
     #page-container {
-      margin-top: 40px;
+      margin-top: 20px;
     }
 
     .chat-bubble {
-      margin: 40px auto 10px;
+      margin: 0px auto 10px;
       width: 160px;
       height: 160px;
       border-radius: 50%;
@@ -38,14 +34,23 @@
       transition: background-color 0.4s, box-shadow 0.4s;
     }
 
-    .speaker {
+    .mic-on {
       background-color: #4CAF50;
       box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
     }
 
-    .listener {
+    .mic-off {
       background-color: #2196F3;
       box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
+    }
+
+    #voice-bubble {
+      transition: background-color 1.0s ease, box-shadow 1.0s ease;
+    }
+
+    .launching {
+      background-color: #9374ef;
+      box-shadow: 0 0 30px rgba(147, 116, 239, 0.7);
     }
 
     @keyframes pulse {
@@ -73,18 +78,32 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     }
 
-    #chat-box {
+    #outer-chat-box {
       width: 100%;
       max-width: 700px;
       margin: 20px auto;
       background: #2c2c2c;
-      padding: 20px;
       border-radius: 12px;
+      height: 300px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    #chat-box {
+      padding: 20px;
+      padding-bottom: 55px;
+      height: max-content;
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: 400px;
       overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    @keyframes fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
     }
 
     .chat-message {
@@ -93,6 +112,7 @@
       max-width: 70%;
       word-wrap: break-word;
       display: inline-block;
+      animation: fade-in 2s;
     }
 
     .chat-message.bot {
@@ -100,6 +120,7 @@
       color: #fff;
       align-self: flex-start;
       border-top-left-radius: 0;
+      text-align: left;
     }
 
     .chat-message.user {
@@ -107,16 +128,50 @@
       color: white;
       align-self: flex-end;
       border-top-right-radius: 0;
+      text-align: left;
     }
 
-    #role-labels {
-      margin-top: 12px;
-      color: #cccccc;
+    .fade-overlay {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 60px;
+      background: linear-gradient(
+        #2c2c2c00 0%,
+        #2c2c2cff 40%,
+        #2c2c2cff 100%
+      );
+      z-index: 5;
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .button-container {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      display: flex;
+      justify-content: flex-end;
+      z-index: 10;
+      border-radius: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background-color: #ffffff00;
+      color: white;
+      border: none;
+      cursor: pointer;
       font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #ffffff22;
     }
 
     footer {
-      margin-top: 60px;
+      padding: 10px;
       font-size: 14px;
       color: #aaa;
     }
@@ -130,9 +185,9 @@
 <body>
 
 <header>
-  <div style="text-align: center; padding: 30px 0;">
-    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 60px;" />
-    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
+  <div style="text-align: center; padding: 30px 0 10px;">
+    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
+    <h2 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h2>
   </div>
 </header>
 
@@ -148,33 +203,38 @@
     <button id="create-button" onclick="startSession()">Start a Session</button>
   </div>
 
-  <div id="voice-bubble" class="chat-bubble speaker hidden">
-    <span id="role-icon">🎤</span>
-  </div>
-
-  <div id="role-labels"></div>
-
-  <div id="chat-box"></div>
-
-  <div class="text-center">
-    <button onclick="downloadChat()" class="btn btn-outline-light mt-3">Download Chat</button>
+  <div id="initially-hidden" class="hidden">
+    <div id="voice-bubble" class="chat-bubble launching">
+      <span id="role-icon"></span>
+    </div>
+  
+    <div id="outer-chat-box">
+      <div class="button-container">
+        <button onclick="" class="btn">Stop/Back</button>
+        <button onclick="reportBug()" class="btn" >Report a Bug</button>
+        <button onclick="downloadChat()" class="btn" style="border-bottom-right-radius: 12px;">Download Chat</button>
+      </div>
+      <div class="fade-overlay"></div>
+      <div id="chat-box"></div>
+    </div>
   </div>
 </div>
 
 <footer>
   <p>
-    <a href="https://github.com/r-nisweesi/CounselorProject/" target="_blank">
-      <i class="fab fa-github"></i> View on GitHub
+    <a href="https://github.com/imshrirangpatil/speaker-listener-web-ai" target="_blank">
+      View on GitHub
     </a>
   </p>
   <p>Developers:</p>
-  <p class="developer-names">Shrirang Patil, Nadir</p>
+  <p class="developer-names">Shrirang, Nadir, Adam</p>
 </footer>
 
 <script>
   const socket = io();
   const chatBox = document.getElementById('chat-box');
   const chatLog = [];
+  var chatDownloaded = false;
 
   function startSession() {
     const selected = document.getElementById('characterSelect').value;
@@ -192,8 +252,8 @@
     .then(data => {
       if (data.status === "success") {
         document.getElementById("setup-ui").style.display = "none";
-        const bubble = document.getElementById("voice-bubble");
-        bubble.classList.remove("hidden");
+        const initially_hidden = document.getElementById("initially-hidden");
+        initially_hidden.classList.remove("hidden");
         chatBox.style.display = "flex";
         addMessage("Charisma Bot is now launching...", "bot");
       } else {
@@ -206,30 +266,6 @@
     });
   }
 
-  function setBotRole(role) {
-    const bubble = document.getElementById("voice-bubble");
-    const icon = document.getElementById("role-icon");
-
-    if (role === "speaker") {
-      bubble.classList.remove("listener");
-      bubble.classList.add("speaker");
-      icon.textContent = "🎤";
-    } else {
-      bubble.classList.remove("speaker");
-      bubble.classList.add("listener");
-      icon.textContent = "🎧";
-    }
-  }
-
-  function updateRoleLabels(botRole, userRole) {
-    const container = document.getElementById("role-labels");
-    if (!container) return;
-    container.innerHTML = `
-      <p><strong>🤖 Bot:</strong> ${capitalize(botRole)}</p>
-      <p><strong>🧑 You:</strong> ${capitalize(userRole)}</p>
-    `;
-  }
-
   function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
@@ -237,30 +273,72 @@
   function addMessage(text, sender) {
     const message = document.createElement("div");
     message.className = `chat-message ${sender}`;
-    message.textContent = text;
+    message.textContent = capitalize(text);
     chatBox.appendChild(message);
     chatBox.scrollTop = chatBox.scrollHeight;
-    chatLog.push(`${sender.toUpperCase()}: ${text}`);
+    const now = new Date();
+    day = now.getDate().toString().padStart(2, '0');
+    month = (now.getMonth() + 1).toString().padStart(2, '0');
+    year = now.getFullYear();
+    hour = now.getHours().toString().padStart(2, '0');;
+    minute = now.getMinutes().toString().padStart(2, '0');;
+    second = now.getSeconds().toString().padStart(2, '0');;
+    chatLog.push(`${day}-${month}-${year} ${hour}:${minute}:${second} ${sender.toUpperCase()}: ${text}`);
+  }
+
+  function updateMicStatus(activated) {
+    const bubble = document.getElementById("voice-bubble");
+    const icon = document.getElementById("role-icon");
+    if (activated) {
+      bubble.classList.remove("launching");
+      bubble.classList.remove("mic-off");
+      bubble.classList.add("mic-on");
+      icon.textContent = "🎤";
+    } else {
+      bubble.classList.remove("launching");
+      bubble.classList.remove("mic-on");
+      bubble.classList.add("mic-off");
+      icon.textContent = "🔊";
+    }
   }
 
   function downloadChat() {
+    if (!confirm("Are you sure you want to download the chat?"))
+      return;
+
     const blob = new Blob([chatLog.join("\n")], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "charisma_chat_log.txt";
+    const now = new Date();
+    day = now.getDate().toString().padStart(2, '0');
+    month = (now.getMonth() + 1).toString().padStart(2, '0');
+    year = now.getFullYear();
+    link.download = `charisma_chat_log_${day}_${month}_${year}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    chatDownloaded = true;
   }
 
-  socket.on("bot_user_roles", (data) => {
-    setBotRole(data.bot_role);
-    updateRoleLabels(data.bot_role, data.user_role);
-  });
+  function reportBug() {
+    window.open('https://docs.google.com/forms/d/e/1FAIpQLSdf-rvSeMAqlF_iRflrT5DP-g9Q7CJEmnkNTIIr8ouiZ2GOLw/viewform?usp=dialog', '_blank');
+  }
 
   socket.on("new_message", (data) => {
     if (data && data.text && data.sender) {
       addMessage(data.text, data.sender);
+    }
+  });
+
+  socket.on("mic_activated", (data) => {
+    updateMicStatus(data.activated);
+  });
+
+  window.addEventListener('beforeunload', function (e) {
+    if (!chatDownloaded) {
+      // Show prompt (some browsers ignore custom text)
+      e.preventDefault(); // Needed for some browsers
+      e.returnValue = ''; // Triggers the browser's confirmation dialog
     }
   });
 </script>

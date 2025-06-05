@@ -73,14 +73,15 @@ def relay_message(data):
     print("[SERVER] Relaying message:", data)
     emit('new_message', data, broadcast=True)
 
-def emit_bot_user_roles(bot_role, user_role):
+@socketio.on('mic_activated')
+def emit_mic_activated(data):
     """
-    Emit both bot and user roles to the frontend.
+    Emit mic activation status to the frontend.
     """
-    if bot_role in ["speaker", "listener"] and user_role in ["speaker", "listener"]:
-        socketio.emit('bot_user_roles', {
-            'bot_role': bot_role,
-            'user_role': user_role
+    activated = data.get("activated")
+    if activated in [True, False]:
+        emit('mic_activated', {
+            'activated': activated
         }, broadcast=True)
 
 

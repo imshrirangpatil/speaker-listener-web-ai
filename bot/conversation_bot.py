@@ -29,6 +29,7 @@ from uuid import uuid4
 
 import os
 
+sio = socketio.Client()
 SERVER_URL = os.environ.get("SERVER_URL", "http://127.0.0.1:5000")
 sio.connect(SERVER_URL)   # let Socket.IO pick ws or polling automatically
 

@@ -1,8 +1,8 @@
 .env
 data/conversations
 data/generated_audio
+data/models
 __pycache__/
 .DS_Store
 /venv
 firebase_key.json
-data/models

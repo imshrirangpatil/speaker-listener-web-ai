@@ -19,12 +19,12 @@ OUTPUT_AUDIO_DIR = os.path.join(DATA_DIR, "generated_audio")
 CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations") 
 
 # # Create required directories
-# os.makedirs(DATA_DIR, exist_ok=True)
-# os.makedirs(MODEL_DIR, exist_ok=True)
-# os.makedirs(VOSK_DIR, exist_ok=True)
-# os.makedirs(VITS_DIR, exist_ok=True)
-# os.makedirs(OUTPUT_AUDIO_DIR, exist_ok=True)
-# os.makedirs(CONVERSATION_DIR, exist_ok=True) 
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(VOSK_DIR, exist_ok=True)
+os.makedirs(VITS_DIR, exist_ok=True)
+os.makedirs(OUTPUT_AUDIO_DIR, exist_ok=True)
+os.makedirs(CONVERSATION_DIR, exist_ok=True) 
 
 # VOSK Model Setup
 VOSK_MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip"

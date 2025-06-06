@@ -21,7 +21,7 @@
     }
 
     .chat-bubble {
-      margin: 0px auto 10px;
+      margin-bottom: 10px;
       width: 160px;
       height: 160px;
       border-radius: 50%;
@@ -43,8 +43,18 @@
       background-color: #2196F3;
       box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
     }
+    
+    .bubble-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-    #voice-bubble {
+    #human-bubble {
+      transition: background-color 1.0s ease, box-shadow 1.0s ease;
+    }
+
+    #AI-bubble {
       transition: background-color 1.0s ease, box-shadow 1.0s ease;
     }
 
@@ -57,6 +67,34 @@
       0% { transform: scale(1); }
       50% { transform: scale(1.1); }
       100% { transform: scale(1); }
+    }
+
+    .arrow-container {
+      height: 100px;
+      width:150px;
+      padding: 20px;
+    }
+
+    .arrow-container img {
+      height:100%;
+      width:100%;
+      object-fit: contain;
+    }
+
+    .point-right {
+      animation: rotate-right 1s forwards;
+    }
+
+    .point-left {
+      animation: rotate-right 1s forwards;
+    }
+
+    @keyframes rotate-right {
+      100% { rotate: 90deg; }
+    }
+
+    @keyframes rotate-left {
+      100% { rotate: -90deg; }
     }
 
     .hidden { display: none; }
@@ -187,7 +225,7 @@
 <header>
   <div style="text-align: center; padding: 30px 0 10px;">
     <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
-    <h2 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h2>
+    <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
   </div>
 </header>
 
@@ -204,8 +242,16 @@
   </div>
 
   <div id="initially-hidden" class="hidden">
-    <div id="voice-bubble" class="chat-bubble launching">
-      <span id="role-icon"></span>
+    <div class="bubble-container">
+      <div id="human-bubble" class="chat-bubble launching">
+        <span id="role-icon"></span>
+      </div>
+      <div class="arrow-container">
+        <img id="bubble-arrow" class="hidden" src="{{ url_for('static', filename='arrow.png') }}" alt="Arrow" />
+      </div>
+      <div id="AI-bubble" class="chat-bubble launching">
+        <span id="role-icon"></span>
+      </div>
     </div>
   
     <div id="outer-chat-box">
@@ -286,8 +332,21 @@
     chatLog.push(`${day}-${month}-${year} ${hour}:${minute}:${second} ${sender.toUpperCase()}: ${text}`);
   }
 
+  function updateRoles(bot_role, user_role) {
+    const arrow = document.getElementById("bubble-arrow");
+    if (user_role == "listener") {
+      arrow.classList.remove("hidden");
+      arrow.classList.remove("point-left");
+      arrow.classList.add("point-right");
+    } else {
+      arrow.classList.remove("hidden");
+      arrow.classList.remove("point-right");
+      arrow.classList.add("point-left");
+    }
+  }
+
   function updateMicStatus(activated) {
-    const bubble = document.getElementById("voice-bubble");
+    const bubble = document.getElementById("human-bubble");
     const icon = document.getElementById("role-icon");
     if (activated) {
       bubble.classList.remove("launching");
@@ -328,6 +387,10 @@
     if (data && data.text && data.sender) {
       addMessage(data.text, data.sender);
     }
+  });
+
+  socket.on("bot_user_roles", (data) => {
+    updateRoles(data.bot_role, data.user_role);
   });
 
   socket.on("mic_activated", (data) => {

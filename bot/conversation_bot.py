@@ -27,10 +27,14 @@ if not firebase_admin._apps:
 db = firestore.client()
 from uuid import uuid4
 
+import os
 
+SERVER_URL = os.environ.get("SERVER_URL", "http://127.0.0.1:5000")
+sio.connect(SERVER_URL)   # let Socket.IO pick ws or polling automatically
 
-sio = socketio.Client()
-sio.connect("http://127.0.0.1:5000", transports=["websocket"])
+# Local only
+# sio = socketio.Client()
+# sio.connect("http://127.0.0.1:5000", transports=["websocket"])
 
 class ConversationBot:
     def __init__(self, character_type=None, llm_provider="gemini"):

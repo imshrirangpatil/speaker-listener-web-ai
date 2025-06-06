@@ -68,4 +68,3 @@ bnnumerizer
 jieba
 JPype1
 gruut
-PyAudio

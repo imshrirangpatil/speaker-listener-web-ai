@@ -30,24 +30,48 @@
       justify-content: center;
       font-size: 48px;
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
-      animation: pulse 2s infinite;
+      animation: launch-to-pulse 1s forwards, pulse 2s infinite;
+      animation-delay: 0s, 1s;
       transition: background-color 0.4s, box-shadow 0.4s;
     }
 
-    .mic-on {
-      background-color: #4CAF50;
-      box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
+    .launching {
+      background-color: #9374ef;
+      box-shadow: 0 0 30px rgba(147, 116, 239, 0.7);
+      animation: launching-pulse 4s infinite;
+    }   
+
+    @keyframes launching-pulse {
+      0% { transform: scale(.5); }
+      50% { transform: scale(.55); }
+      100% { transform: scale(.5); }
     }
 
-    .mic-off {
-      background-color: #2196F3;
-      box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
+    @keyframes launch-to-pulse {
+      0% { transform: scale(.5); }
+      100% { transform: scale(1); }
     }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    } 
     
     .bubble-container {
       display: flex;
       justify-content: center;
       align-items: center;
+    }
+
+    .human-bubble {
+      background-color: #4CAF50;
+      box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
+    }
+
+    .AI-bubble {
+      background-color: #2196F3;
+      box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
     }
 
     #human-bubble {
@@ -56,17 +80,6 @@
 
     #AI-bubble {
       transition: background-color 1.0s ease, box-shadow 1.0s ease;
-    }
-
-    .launching {
-      background-color: #9374ef;
-      box-shadow: 0 0 30px rgba(147, 116, 239, 0.7);
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
     }
 
     .arrow-container {
@@ -79,6 +92,7 @@
       height:100%;
       width:100%;
       object-fit: contain;
+      animation: fade-in 1s forwards;
     }
 
     .point-right {
@@ -90,11 +104,11 @@
     }
 
     @keyframes rotate-right {
-      100% { rotate: 90deg; }
+      100% { transform: rotate(90deg); }
     }
 
     @keyframes rotate-left {
-      100% { rotate: -90deg; }
+      100% { transform: rotate(-90deg); }
     }
 
     .hidden { display: none; }
@@ -224,7 +238,9 @@
 
 <header>
   <div style="text-align: center; padding: 30px 0 10px;">
-    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
+    <a href="https://www.charismarobotics.com/" target="_blank">
+      <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
+    </a>
     <h3 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h3>
   </div>
 </header>
@@ -244,13 +260,13 @@
   <div id="initially-hidden" class="hidden">
     <div class="bubble-container">
       <div id="human-bubble" class="chat-bubble launching">
-        <span id="role-icon"></span>
+        <span id="human-role-icon"></span>
       </div>
       <div class="arrow-container">
         <img id="bubble-arrow" class="hidden" src="{{ url_for('static', filename='arrow.png') }}" alt="Arrow" />
       </div>
       <div id="AI-bubble" class="chat-bubble launching">
-        <span id="role-icon"></span>
+        <span id="AI-role-icon"></span>
       </div>
     </div>
   
@@ -335,29 +351,44 @@
   function updateRoles(bot_role, user_role) {
     const arrow = document.getElementById("bubble-arrow");
     if (user_role == "listener") {
-      arrow.classList.remove("hidden");
-      arrow.classList.remove("point-left");
+      if (arrow.classList.contains("hidden")) {
+        arrow.classList.remove("hidden");
+        arrow.style.transform = "rotate(90deg)";
+      } else {
+        arrow.classList.remove("point-left");
+      }
+
       arrow.classList.add("point-right");
     } else {
-      arrow.classList.remove("hidden");
-      arrow.classList.remove("point-right");
+      if (arrow.classList.contains("hidden")) {
+        arrow.classList.remove("hidden");
+        arrow.style.transform = "rotate(-90deg)";
+      } else {
+        arrow.classList.remove("point-right");
+      }
+      
       arrow.classList.add("point-left");
     }
   }
 
   function updateMicStatus(activated) {
-    const bubble = document.getElementById("human-bubble");
-    const icon = document.getElementById("role-icon");
+    const human = document.getElementById("human-bubble");
+    const human_icon = document.getElementById("human-role-icon");
+    const AI = document.getElementById("AI-bubble");
+    const AI_icon = document.getElementById("AI-role-icon");
+
+    human.classList.remove("launching");
+    human.classList.add("human-bubble");
+
+    AI.classList.remove("launching");
+    AI.classList.add("AI-bubble");
+
     if (activated) {
-      bubble.classList.remove("launching");
-      bubble.classList.remove("mic-off");
-      bubble.classList.add("mic-on");
-      icon.textContent = "🎤";
+      human_icon.textContent = "🎤";
+      AI_icon.textContent = "🎧";
     } else {
-      bubble.classList.remove("launching");
-      bubble.classList.remove("mic-on");
-      bubble.classList.add("mic-off");
-      icon.textContent = "🔊";
+      human_icon.textContent = "🎧";
+      AI_icon.textContent = "🎤";
     }
   }
 

@@ -92,6 +92,9 @@
       height:100%;
       width:100%;
       object-fit: contain;
+    }
+
+    .fade-in {
       animation: fade-in 1s forwards;
     }
 
@@ -100,7 +103,7 @@
     }
 
     .point-left {
-      animation: rotate-right 1s forwards;
+      animation: rotate-left 1s forwards;
     }
 
     @keyframes rotate-right {
@@ -354,20 +357,24 @@
       if (arrow.classList.contains("hidden")) {
         arrow.classList.remove("hidden");
         arrow.style.transform = "rotate(90deg)";
+        arrow.classList.add("fade-in");
       } else {
         arrow.classList.remove("point-left");
+        arrow.classList.remove("fade-in");
+        arrow.classList.add("point-right");
       }
 
-      arrow.classList.add("point-right");
     } else {
       if (arrow.classList.contains("hidden")) {
         arrow.classList.remove("hidden");
         arrow.style.transform = "rotate(-90deg)";
+        arrow.classList.add("fade-in");
       } else {
         arrow.classList.remove("point-right");
+        arrow.classList.remove("fade-in");
+        arrow.classList.add("point-left");
       }
-      
-      arrow.classList.add("point-left");
+    
     }
   }
 
@@ -384,11 +391,11 @@
     AI.classList.add("AI-bubble");
 
     if (activated) {
-      human_icon.textContent = "🎤";
+      human_icon.textContent = "🔊";
       AI_icon.textContent = "🎧";
     } else {
       human_icon.textContent = "🎧";
-      AI_icon.textContent = "🎤";
+      AI_icon.textContent = "🔊";
     }
   }
 

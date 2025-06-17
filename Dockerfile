@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     espeak \
     build-essential \
     libasound2-dev \
+    alsa-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

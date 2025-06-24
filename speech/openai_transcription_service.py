@@ -14,10 +14,11 @@ openai.api_key = OPENAI_API_KEY
 def transcribe_with_openai(
     audio_bytes: bytes,
     model: str = "gpt-4o-transcribe",
+    language: str = "en",
     response_format: str = "text"
 ) -> str:
     """
-    Send raw audio bytes to OpenAI’s Transcriptions endpoint and return the transcript text.
+    Send raw audio bytes to OpenAI's Transcriptions endpoint and return the transcript text.
 
     - audio_bytes: raw bytes of a WAV/MP3 file.
     - model: e.g. "gpt-4o-transcribe", "gpt-4o-mini-transcribe", or "whisper-1".
@@ -52,5 +53,4 @@ def transcribe_with_openai(
             return resp.to_dict()
 
     except Exception as e:
-        print(f"[openai_transcription_service] error transcribing: {e}")
         return ""

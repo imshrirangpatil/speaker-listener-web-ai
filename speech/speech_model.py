@@ -14,8 +14,6 @@ class SpeechModel:
         self.tokenizer = VitsTokenizer.from_pretrained(model_name, cache_dir=VITS_DIR)
         self.model = VitsModel.from_pretrained(model_name, cache_dir=VITS_DIR)
 
-        print(f"VITS Model loaded successfully: {model_name}")
-
     def text_to_speech(self, text, output_path="output.wav"):
         """Convert text to speech and save as a .wav file."""
         inputs = self.tokenizer(text=text, return_tensors="pt")

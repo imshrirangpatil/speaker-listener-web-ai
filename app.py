@@ -2,13 +2,26 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 from threading import Thread
 import subprocess
+from uuid import uuid4
 import sys
 import os
+from speech.speech_model import speech_model
 
 # Initialize Flask and SocketIO
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, 
+    cors_allowed_origins="*",
+    ping_timeout=60,
+    ping_interval=25,
+    async_mode='threading',
+    logger=False,  # Disable socketio logging
+    engineio_logger=False,  # Disable engine logging
+    reconnection=True,
+    reconnection_attempts=5,
+    reconnection_delay=1000,
+    reconnection_delay_max=5000
+)
 
 # Global variable for selected character
 selected_character = None
@@ -17,8 +30,32 @@ def run_bot(character_type):
     """
     Launch the bot in a separate subprocess with the selected character.
     """
-    print(f"[BOT LAUNCH] Character: {character_type}")
-    subprocess.Popen([sys.executable, "bot_launcher.py", character_type])
+    print(f"[SERVER] Starting bot with character: {character_type}")
+    
+    try:
+        # Set environment variable for character type
+        env = os.environ.copy()
+        env["BOT_CHARACTER"] = character_type
+        
+        # Use Popen with output capture for debugging
+        process = subprocess.Popen(
+            [sys.executable, "main.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1,
+            env=env
+        )
+        
+        # Monitor the subprocess output in real-time
+        for line in iter(process.stdout.readline, ''):
+            if line.strip() and not line.startswith('[CLIENT]') and not line.startswith('[DEBUG]'):
+                print(line.strip())
+        
+        process.wait()
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to start bot: {e}")
 
 @app.route("/", methods=["GET"])
 def home():
@@ -37,18 +74,43 @@ def start_session():
     selected_character = data.get("character")
 
     if selected_character:
-        print(f"[INFO] Starting bot with character: {selected_character}", flush=True)
+        print(f"[SERVER] Starting bot with character: {selected_character}", flush=True)
+        print(f"[SERVER] Launching bot subprocess...", flush=True)
         Thread(target=run_bot, args=(selected_character,)).start()
         return jsonify({
             "status": "success",
             "message": f"Bot started with character: {selected_character}"
         })
     else:
+        print(f"[SERVER ERROR] No character selected", flush=True)
         return jsonify({
             "status": "error",
             "message": "No character selected."
         }), 400
 
+
+# Remove the /speak endpoint as we're now using streamed audio from Groq
+# @app.route("/speak", methods=["POST"])
+# def speak():
+#     """
+#     Generate speech audio from text and return its URL.
+#     """
+#     data = request.get_json()
+#     text = data.get("text", "")
+
+#     if not text.strip():
+#         return jsonify({"error": "Empty text"}), 400
+
+#     filename = f"tts_{uuid4().hex}.wav"
+#     filepath = os.path.join("static", filename)
+
+#     try:
+#         speech_model.text_to_speech(text, filepath)
+#         return jsonify({"url": f"/static/{filename}"})
+#     except Exception as e:
+#         print(f"[ERROR] TTS failed: {e}")
+#         return jsonify({"error": "Failed to generate speech"}), 500
+    
 # # Optional WebSocket event handling
 # @socketio.on('user_message')
 # def handle_user_message(data):
@@ -68,22 +130,62 @@ def start_session():
 #     print(f"[BOT] {bot_text}")
 #     emit('new_message', {'text': bot_text, 'sender': 'bot'}, broadcast=True)
 
-@socketio.on('new_message')
-def relay_message(data):
-    print("[SERVER] Relaying message:", data)
-    emit('new_message', data, broadcast=True)
+# Removed relay_message to prevent duplication
+# Messages are sent directly from the bot via socketio
 
 @socketio.on('mic_activated')
 def emit_mic_activated(data):
-    """
-    Emit mic activation status to the frontend.
-    """
+    """Emit mic activation status to the frontend."""
     activated = data.get("activated")
     if activated in [True, False]:
-        emit('mic_activated', {
-            'activated': activated
-        }, broadcast=True)
+        emit('mic_activated', {'activated': activated}, broadcast=True)
 
+@socketio.on('user_speech')
+def handle_user_speech(data):
+    """Handle user speech input from the web interface."""
+    user_text = data.get('text', '')
+    emit('new_message', {'text': user_text, 'sender': 'user'}, broadcast=True)
+    emit('user_input', {'text': user_text}, broadcast=True)
+
+@socketio.on('play_audio_base64')
+def handle_play_audio_base64(data):
+    """Relay audio data from bot subprocess to web clients."""
+    emit('play_audio_base64', data, broadcast=True)
+
+@socketio.on('play_audio')
+def handle_play_audio(data):
+    """
+    Relay audio URL from bot subprocess to web clients.
+    """
+    print(f"[SERVER] Relaying audio URL to clients: {data.get('url', '')}", flush=True)
+    emit('play_audio', data, broadcast=True)
+
+@socketio.on('new_message')
+def handle_new_message(data):
+    """Relay messages from bot subprocess to web clients."""
+    emit('new_message', data, broadcast=True)
+
+@socketio.on('tts_failed')
+def handle_tts_failed(data):
+    """
+    Relay TTS failure notifications from bot subprocess to web clients.
+    """
+    print(f"[SERVER] Relaying TTS failure to clients: {data.get('message', '')}", flush=True)
+    emit('tts_failed', data, broadcast=True)
+
+@socketio.on('connect')
+def handle_connect():
+    pass  # Silent connection
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    pass  # Silent disconnection
+
+@socketio.on('bot_audio_ended')
+def handle_bot_audio_ended():
+    print(f"[SERVER] Bot audio playback ended", flush=True)
+    # Relay this to the bot process
+    emit('bot_audio_ended', {}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

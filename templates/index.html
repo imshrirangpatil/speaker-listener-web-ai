@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Charisma Counselor</title>
-  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <title>Charisma | AI Counselor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
+    /* [UNCHANGED STYLE] your existing styles go here... */
     body {
       background-color: #1a1a1a;
       color: #ffffff;
@@ -230,6 +232,8 @@
   <p class="developer-names">Shrirang, Nadir, Adam</p>
 </footer>
 
+<audio id="bot-audio" hidden></audio>
+
 <script>
   const socket = io();
   const chatBox = document.getElementById('chat-box');
@@ -280,9 +284,9 @@
     day = now.getDate().toString().padStart(2, '0');
     month = (now.getMonth() + 1).toString().padStart(2, '0');
     year = now.getFullYear();
-    hour = now.getHours().toString().padStart(2, '0');;
-    minute = now.getMinutes().toString().padStart(2, '0');;
-    second = now.getSeconds().toString().padStart(2, '0');;
+    hour = now.getHours().toString().padStart(2, '0');
+    minute = now.getMinutes().toString().padStart(2, '0');
+    second = now.getSeconds().toString().padStart(2, '0');
     chatLog.push(`${day}-${month}-${year} ${hour}:${minute}:${second} ${sender.toUpperCase()}: ${text}`);
   }
 
@@ -330,15 +334,162 @@
     }
   });
 
-  socket.on("mic_activated", (data) => {
-    updateMicStatus(data.activated);
+  // Handle base64 audio playback
+  socket.on("play_audio_base64", ({ audio_base64, mime }) => {
+    const audioBlob = new Blob([Uint8Array.from(atob(audio_base64), c => c.charCodeAt(0))], { type: mime });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.onended = () => {
+      socket.emit("bot_audio_ended");
+    };
+    audio.play();
   });
+
+  // Handle direct audio URL from Groq
+  socket.on("play_audio", (data) => {
+    if (data.url) {
+      const audio = document.getElementById("bot-audio");
+      audio.src = data.url;
+      audio.onended = () => {
+        socket.emit("bot_audio_ended");
+      };
+      audio.play();
+    }
+  });
+
+  // Voice recognition for user input
+  let recognition;
+  let isRecording = false;
+  let isListening = false;  // Track if we should be listening
+
+  function initVoiceRecognition() {
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      console.log("Using webkitSpeechRecognition");
+    } else if ('SpeechRecognition' in window) {
+      recognition = new SpeechRecognition();
+      console.log("Using SpeechRecognition");
+    } else {
+      console.error("Speech recognition not supported in this browser");
+      alert("Speech recognition is not supported in your browser. Please use Chrome or Edge.");
+      return;
+    }
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = function() {
+      console.log("Speech recognition started");
+      isRecording = true;
+    };
+
+    recognition.onresult = function(event) {
+      const transcript = event.results[0][0].transcript;
+      console.log("User said:", transcript);
+      console.log("Sending user speech to server:", transcript);
+      
+      // Send to server via user_speech event (this will handle the chat display)
+      socket.emit("user_speech", { text: transcript });
+      
+      // Also send via user_input event for bot processing
+      socket.emit("user_input", { text: transcript });
+      
+      // DON'T add to chat here - it will be added by the server response
+      // addMessage(transcript, 'user');  // REMOVED - causes duplicate messages
+      
+      isRecording = false;
+      isListening = false;  // Stop listening after getting result
+    };
+
+    recognition.onerror = function(event) {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === 'not-allowed') {
+        alert("Microphone access denied. Please allow microphone access and refresh the page.");
+      } else if (event.error === 'no-speech') {
+        console.log("No speech detected, trying again...");
+        // Don't restart automatically on no-speech
+      }
+      isRecording = false;
+    };
+
+    recognition.onend = function() {
+      console.log("Speech recognition ended");
+      isRecording = false;
+      
+      // Restart recognition if we should still be listening and no speech was detected
+      if (isListening && !isRecording) {
+        setTimeout(() => {
+          if (isListening && !isRecording) {
+            console.log("Restarting speech recognition...");
+            startListening();
+          }
+        }, 500);  // Small delay before restart
+      }
+    };
+  }
+
+  function startListening() {
+    if (!recognition) {
+      console.error("Speech recognition not initialized");
+      return;
+    }
+    
+    if (isRecording) {
+      console.log("Already recording, skipping...");
+      return;
+    }
+    
+    try {
+      console.log("Starting speech recognition...");
+      recognition.start();
+    } catch (error) {
+      console.error("Error starting speech recognition:", error);
+      isRecording = false;
+      // Reset state if error occurs
+      if (error.name === 'InvalidStateError') {
+        console.log("Recognition already started, waiting for it to end...");
+      }
+    }
+  }
+
+  function stopListening() {
+    console.log("Stopping speech recognition...");
+    isListening = false;
+    if (recognition && isRecording) {
+      recognition.stop();
+    }
+  }
+
+  // Initialize voice recognition when page loads
+  initVoiceRecognition();
+
+  socket.on("mic_activated", (data) => {
+    console.log("Mic activated event received:", data.activated);
+    updateMicStatus(data.activated);
+    
+    if (data.activated && !isListening) {
+      // Start listening when mic is activated
+      isListening = true;
+      startListening();
+    } else if (!data.activated && isListening) {
+      // Stop listening when mic is deactivated
+      stopListening();
+    }
+  });
+
+  // Handle user input from speech recognition
+  // socket.on("user_input", (data) => {  // REMOVED - causes duplicate messages
+  //   console.log("User input received from bot:", data);
+  //   if (data && data.text) {
+  //     addMessage(data.text, 'user');
+  //   }
+  // });
 
   window.addEventListener('beforeunload', function (e) {
     if (!chatDownloaded) {
-      // Show prompt (some browsers ignore custom text)
-      e.preventDefault(); // Needed for some browsers
-      e.returnValue = ''; // Triggers the browser's confirmation dialog
+      e.preventDefault();
+      e.returnValue = '';
     }
   });
 </script>

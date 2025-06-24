@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libasound2-dev \
     alsa-utils \
+    portaudio19-dev \
+    python3-pyaudio \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

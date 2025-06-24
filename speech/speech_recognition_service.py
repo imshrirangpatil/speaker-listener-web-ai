@@ -124,6 +124,7 @@ import os
 import wave
 import requests      # only if you need HTTP (not needed here, but you may remove if unused)
 import speech_recognition as sr
+import time
 
 # Import our new OpenAI wrapper
 from .openai_transcription_service import transcribe_with_openai
@@ -133,48 +134,48 @@ recognizer = sr.Recognizer()
 
 def listen_for_speech():
     """
-    Capture microphone input via speech_recognition, save to a temp WAV file,
-    read its bytes, send to OpenAI for transcription, then delete the temp file.
-    Returns the transcribed string, or None on error.
+    Capture microphone input, save to WAV, send to OpenAI Whisper (gpt-4o-transcribe),
+    enforce English-only transcription, and clean up the file.
+    Returns the transcription or None.
     """
-
-    RATE = 16000  # sampling rate
-    PHRASE_TIME_LIMIT = 10  # seconds of max recording
+    RATE = 16000
+    PHRASE_TIME_LIMIT = 10
+    temp_filename = "temp_input.wav"
 
     try:
+        # Optional pause before listening to give time after TTS
+        time.sleep(2)  # Let user reflect before recording starts
+
         with sr.Microphone(sample_rate=RATE) as source:
-            print("[listen_for_speech] recording...", flush=True)
             recognizer.adjust_for_ambient_noise(source, duration=1)
             audio = recognizer.listen(source, timeout=20, phrase_time_limit=PHRASE_TIME_LIMIT)
 
-            # Save to a temporary WAV file
-            temp_filename = "temp_input.wav"
             with open(temp_filename, "wb") as f:
                 f.write(audio.get_wav_data())
 
-        # Read the raw bytes of the WAV file
         with open(temp_filename, "rb") as f:
             audio_bytes = f.read()
 
-        # Delete the temporary file
         if os.path.exists(temp_filename):
             os.remove(temp_filename)
 
-        # Call our OpenAI transcription service
-        transcript = transcribe_with_openai(audio_bytes, model="gpt-4o-transcribe", response_format="text")
-        print(f"[listen_for_speech] transcription: {transcript}")
+        # Use GPT-4o Whisper model with enforced English
+        transcript = transcribe_with_openai(
+            audio_bytes=audio_bytes,
+            model="gpt-4o-transcribe",
+            response_format="text",
+            language="en"
+        )
+
         return transcript
 
     except sr.WaitTimeoutError:
-        print("[listen_for_speech] Listening timed out while waiting for phrase to start")
         return None
 
     except Exception as e:
-        print(f"[listen_for_speech] error: {e}")
-        # Clean up if still there
         try:
-            if os.path.exists("temp_input.wav"):
-                os.remove("temp_input.wav")
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
         except:
             pass
         return None

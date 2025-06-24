@@ -69,3 +69,4 @@ jieba
 JPype1
 gruut
 websocket-client
+groq

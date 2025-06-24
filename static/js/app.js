@@ -1,4 +1,5 @@
 // Socket.IO connection with reconnection settings
+let sessionId = null;
 const socket = io({
     reconnection: true,
     reconnectionAttempts: 5,
@@ -25,6 +26,21 @@ socket.on('connect_error', (error) => {
     console.log('[CLIENT] Connection error:', error);
 });
 
+// Handle session assignment
+socket.on('session_assigned', (data) => {
+    sessionId = data.session_id;
+    console.log('[CLIENT] Session assigned:', sessionId);
+});
+
+// Handle session ended
+socket.on('session_ended', (data) => {
+    console.log('[CLIENT] Session ended:', data.session_id);
+    showNotification('Session ended. Refreshing page...', 'info');
+    setTimeout(() => {
+        window.location.reload();
+    }, 2000);
+});
+
 // DOM elements
 const chatMessages = document.getElementById('chat-messages');
 const messageInput = document.getElementById('message-input');
@@ -44,23 +60,33 @@ let isPlayingAudio = false;
 let recognition;
 let isListening = false;
 
-// Initialize audio context
+// Initialize audio context with iOS compatibility
 function initAudioContext() {
     console.log('[CLIENT] Initializing audio context...');
     if (!audioContext) {
         try {
+            // Use webkitAudioContext for iOS Safari compatibility
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             console.log('[CLIENT] Audio context created successfully');
             console.log('[CLIENT] Audio context state:', audioContext.state);
             
-            // Resume audio context if suspended (needed for Chrome)
+            // Resume audio context if suspended (needed for Chrome and iOS)
             if (audioContext.state === 'suspended') {
                 console.log('[CLIENT] Audio context suspended, attempting to resume...');
-                audioContext.resume().then(() => {
-                    console.log('[CLIENT] Audio context resumed successfully');
-                }).catch(error => {
-                    console.error('[CLIENT] Failed to resume audio context:', error);
-                });
+                // For iOS, audio context needs user interaction to resume
+                const resumeAudio = () => {
+                    audioContext.resume().then(() => {
+                        console.log('[CLIENT] Audio context resumed successfully');
+                        document.removeEventListener('touchstart', resumeAudio);
+                        document.removeEventListener('click', resumeAudio);
+                    }).catch(error => {
+                        console.error('[CLIENT] Failed to resume audio context:', error);
+                    });
+                };
+                
+                // Add event listeners for user interaction
+                document.addEventListener('touchstart', resumeAudio, { once: true });
+                document.addEventListener('click', resumeAudio, { once: true });
             }
         } catch (error) {
             console.error('[CLIENT] Failed to create audio context:', error);
@@ -70,11 +96,45 @@ function initAudioContext() {
     }
 }
 
-// Play audio from base64 data
+// Enhanced audio playback for iOS compatibility
 function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
     return new Promise((resolve, reject) => {
         console.log('[CLIENT] Starting audio playback from base64...');
         console.log('[CLIENT] Audio context state:', audioContext ? audioContext.state : 'no context');
+        
+        // Fallback to HTML5 audio for iOS if Web Audio API fails
+        const fallbackToHTMLAudio = () => {
+            console.log('[CLIENT] Falling back to HTML5 audio...');
+            const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
+            
+            audio.onended = () => {
+                console.log('[CLIENT] HTML5 audio playback completed');
+                socket.emit('bot_audio_ended');
+                resolve();
+            };
+            
+            audio.onerror = (error) => {
+                console.error('[CLIENT] HTML5 audio error:', error);
+                reject(error);
+            };
+            
+            // iOS requires user interaction for audio playback
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('[CLIENT] HTML5 audio started successfully');
+                }).catch(error => {
+                    console.error('[CLIENT] HTML5 audio play failed:', error);
+                    reject(error);
+                });
+            }
+        };
+        
+        // Try Web Audio API first, fallback to HTML5 audio
+        if (!audioContext || audioContext.state === 'suspended') {
+            fallbackToHTMLAudio();
+            return;
+        }
         
         try {
             // Convert base64 to array buffer
@@ -109,12 +169,12 @@ function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
                 
                 console.log('[CLIENT] Audio playback started successfully');
             }, (error) => {
-                console.error('[CLIENT] Audio decode error:', error);
-                reject(error);
+                console.error('[CLIENT] Audio decode error, falling back to HTML5:', error);
+                fallbackToHTMLAudio();
             });
         } catch (error) {
-            console.error('[CLIENT] Audio play error:', error);
-            reject(error);
+            console.error('[CLIENT] Web Audio API error, falling back to HTML5:', error);
+            fallbackToHTMLAudio();
         }
     });
 }
@@ -170,8 +230,8 @@ function initSpeechRecognition() {
             const transcript = event.results[0][0].transcript;
             console.log('[CLIENT] Speech recognized:', transcript);
             
-            // Send to server
-            socket.emit('user_speech', { text: transcript });
+            // Send to server with session ID
+            socket.emit('user_speech', { text: transcript, session_id: sessionId });
             
             // Add to chat
             addMessage(transcript, 'user');
@@ -232,10 +292,13 @@ function switchToSession() {
     addMessage('Charisma Bot is now launching...', 'system');
 }
 
-// Socket.IO event handlers
+// Socket.IO event handlers - only process messages for current session
 socket.on('new_message', (data) => {
     console.log('[CLIENT] New message received:', data);
-    addMessage(data.text, data.sender);
+    // Only process messages for current session or without session ID (for system messages)
+    if (!data.session_id || data.session_id === sessionId) {
+        addMessage(data.text, data.sender);
+    }
 });
 
 socket.on('play_audio_base64', (data) => {
@@ -245,10 +308,13 @@ socket.on('play_audio_base64', (data) => {
     console.log('[CLIENT] MIME type:', data.mime);
     console.log('[CLIENT] Audio data preview:', data.audio_base64 ? data.audio_base64.substring(0, 50) + '...' : 'null');
     
-    if (data.audio_base64 && data.audio_base64.length > 0) {
-        queueAndPlayAudio(data.audio_base64, data.mime);
-    } else {
-        console.error('[CLIENT] Audio data is empty or null');
+    // Only process audio for current session or without session ID
+    if (!data.session_id || data.session_id === sessionId) {
+        if (data.audio_base64 && data.audio_base64.length > 0) {
+            queueAndPlayAudio(data.audio_base64, data.mime);
+        } else {
+            console.error('[CLIENT] Audio data is empty or null');
+        }
     }
 });
 
@@ -259,11 +325,14 @@ socket.on('play_audio', (data) => {
 
 socket.on('mic_activated', (data) => {
     console.log('[CLIENT] Mic activation:', data.activated);
-    if (micButton) {
-        if (data.activated) {
-            micButton.classList.add('active');
-        } else {
-            micButton.classList.remove('active');
+    // Only process for current session or without session ID
+    if (!data.session_id || data.session_id === sessionId) {
+        if (micButton) {
+            if (data.activated) {
+                micButton.classList.add('active');
+            } else {
+                micButton.classList.remove('active');
+            }
         }
     }
 });
@@ -305,6 +374,20 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
+// Add end session functionality
+function endSession() {
+    if (sessionId) {
+        socket.emit('end_session');
+        // Reset UI
+        if (setupUI) setupUI.style.display = 'block';
+        if (sessionUI) sessionUI.style.display = 'none';
+        if (startButton) startButton.disabled = false;
+        if (chatMessages) chatMessages.innerHTML = '';
+        sessionId = null;
+        addMessage('Welcome to Charisma Bot! Select a character and click "Start Session" to begin.', 'system');
+    }
+}
+
 // Event listeners
 if (micButton) {
     micButton.addEventListener('click', toggleMicrophone);
@@ -313,8 +396,8 @@ if (micButton) {
 if (sendButton) {
     sendButton.addEventListener('click', () => {
         const text = messageInput ? messageInput.value.trim() : '';
-        if (text) {
-            socket.emit('user_input', { text: text });
+        if (text && sessionId) {
+            socket.emit('user_speech', { text: text, session_id: sessionId });
             addMessage(text, 'user');
             if (messageInput) messageInput.value = '';
         }
@@ -350,6 +433,7 @@ if (startButton) {
         .then(data => {
             console.log('[CLIENT] Session started:', data);
             if (data.status === 'success') {
+                sessionId = data.session_id;
                 switchToSession();
                 if (startButton) startButton.disabled = true;
             } else {
@@ -362,6 +446,21 @@ if (startButton) {
         });
     });
 }
+
+// Add end session button event listener
+document.addEventListener('DOMContentLoaded', () => {
+    const endButton = document.getElementById('end-button');
+    if (endButton) {
+        endButton.addEventListener('click', endSession);
+    }
+});
+
+// Handle page unload to clean up session
+window.addEventListener('beforeunload', () => {
+    if (sessionId) {
+        socket.emit('end_session');
+    }
+});
 
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', () => {

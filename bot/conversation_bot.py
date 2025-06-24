@@ -66,13 +66,16 @@ def connect_error(data):
     print(f"[WARNING] Connection error: {data}")
 
 class ConversationBot:
-    def __init__(self, character_type=None, llm_provider="openai"):
+    def __init__(self, character_type=None, llm_provider="openai", session_id=None):
         if llm_provider not in LLM_CONFIG:
             raise ValueError(f"Invalid LLM provider: {llm_provider}")
         self.llm_provider = llm_provider
         self.llm_api = LLMApi(provider=self.llm_provider)
         self.conversation_history = []
-        self.session_filename = os.path.join(CONVERSATION_DIR, f"conversation_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+        
+        # Use session ID for unique session identification
+        self.session_id = session_id or f"session_{uuid4().hex}"
+        self.session_filename = os.path.join(CONVERSATION_DIR, f"conversation_{self.session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
 
         if character_type:
             self.character_type = character_type
@@ -85,7 +88,6 @@ class ConversationBot:
         self.bot_role = "speaker"
         self.user_role = "listener"
         self.turn_count = 0
-        self.session_id = f"session_{uuid4().hex}"
         self.selected_issue = None  # Track the specific issue being discussed
         self.speaker_turns_completed = 0  # Track speaker turns
         self.listener_turns_completed = 0  # Track listener turns
@@ -488,48 +490,50 @@ class ConversationBot:
             return f"I feel that {self.selected_issue} is important for our relationship. I want to make sure we're both contributing fairly and feeling appreciated."
 
     def send_and_wait(self, text):
-        print(f"[BOT] {text}")  # Add console logging
+        """
+        Send a message to the user with optional TTS and wait for audio to finish
+        """
         try:
-            # Try TTS first, but continue even if it fails
-            print(f"[BOT] Attempting TTS for: '{text[:50]}...'")
-            audio_data_url = groq_text_to_speech(text)
+            print(f"[BOT] Sending message: {text}")
+            
+            # Generate TTS audio using Groq
+            audio_data_url = groq_text_to_speech(text, return_bytes=False)
             
             if sio.connected:
                 if audio_data_url:  # Only emit audio if TTS succeeded
-                    print("[BOT] TTS successful, sending audio to client")
                     # Extract base64 data from data URL
                     if audio_data_url.startswith("data:audio/wav;base64,"):
                         audio_base64 = audio_data_url.split(",")[1]
-                        print(f"[BOT] Emitting play_audio_base64 event, data length: {len(audio_base64)}")
                         sio.emit("play_audio_base64", {
                             "audio_base64": audio_base64, 
-                            "mime": "audio/wav"
-                        })
-                        print("[BOT] play_audio_base64 event emitted successfully")
+                            "mime": "audio/wav",
+                            "session_id": self.session_id
+                        }, room=self.session_id)
                         # Wait for audio to finish playing
                         self.wait_for_audio_to_finish()
                     else:
                         # Fallback to old method
-                        print("[BOT] Using fallback audio method")
-                        sio.emit("play_audio", {"url": audio_data_url})
+                        sio.emit("play_audio", {
+                            "url": audio_data_url,
+                            "session_id": self.session_id
+                        }, room=self.session_id)
                         self.wait_for_audio_to_finish()
                 else:
                     # TTS failed, emit a notification and continue with text only
-                    print("[BOT] TTS failed - continuing with text only")
-                    sio.emit("tts_failed", {"message": "Audio unavailable - text message only"})
+                    sio.emit("tts_failed", {
+                        "message": "Audio unavailable - text message only",
+                        "session_id": self.session_id
+                    }, room=self.session_id)
                     # Brief pause to simulate speech timing
                     time.sleep(len(text) * 0.05)  # Rough estimate of speech duration
             else:
-                print("[BOT] SocketIO not connected, cannot send audio")
-                        
+                # Brief pause
+                time.sleep(1)
+                    
             # Always emit the text message
             self.emit_message(text, "bot")
             
         except Exception as e:
-            print(f"[ERROR] Failed to send message: {e}")
-            print(f"[ERROR] Exception type: {type(e).__name__}")
-            import traceback
-            print(f"[ERROR] Traceback: {traceback.format_exc()}")
             # Still emit the text message even if everything fails
             self.emit_message(text, "bot")
             # Brief pause
@@ -569,12 +573,13 @@ class ConversationBot:
 
     def on_user_input(self, data):
         """Handle user input received from web interface"""
-        print(f"[BOT] on_user_input called with data: {data}")
-        print(f"[BOT] waiting_for_user_input status: {self.waiting_for_user_input}")
-        
         if self.waiting_for_user_input:
+            # Check if message is for this session
+            message_session_id = data.get('session_id') if isinstance(data, dict) else None
+            if message_session_id and message_session_id != self.session_id:
+                return  # Ignore messages for other sessions
+            
             user_text = data.get('text', '') if isinstance(data, dict) else str(data)
-            print(f"[BOT] Setting user_input_received to: {user_text}")
             self.user_input_received = user_text
             self.waiting_for_user_input = False
             
@@ -592,7 +597,8 @@ class ConversationBot:
                     "turn_count": self.turn_count,
                     "bot_role": self.bot_role,
                     "user_role": self.user_role,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "session_id": self.session_id
                 })
                 
                 # Save to Firebase immediately for user messages
@@ -605,10 +611,13 @@ class ConversationBot:
                             "current_turn": self.turn_count,
                             "bot_role": self.bot_role,
                             "user_role": self.user_role,
-                            "selected_issue": self.selected_issue
+                            "selected_issue": self.selected_issue,
+                            "speaker_turns_completed": self.speaker_turns_completed,
+                            "listener_turns_completed": self.listener_turns_completed,
+                            "session_id": self.session_id
                         })
                     except Exception as e:
-                        print(f"[ERROR] Failed to save user message to Firebase: {e}")
+                        pass
         else:
             print("[BOT] Not waiting for user input, ignoring message")
 
@@ -634,11 +643,15 @@ class ConversationBot:
         self.send_and_wait(self.get_friendly_phrase())
 
     def emit_mic_activated(self, activated):
+        """Emit mic activation status to specific session."""
         try:
             if sio.connected:
-                sio.emit("mic_activated", {"activated": activated})
+                sio.emit('mic_activated', {
+                    'activated': activated,
+                    'session_id': self.session_id
+                }, room=self.session_id)
         except Exception as e:
-            print(f"[ERROR] Failed to emit mic activated: {e}")
+            pass
 
     def emit_message(self, message, sender):
         try:
@@ -650,11 +663,17 @@ class ConversationBot:
                 "turn_count": self.turn_count,
                 "bot_role": self.bot_role,
                 "user_role": self.user_role,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "session_id": self.session_id
             })
 
             if sio.connected:
-                sio.emit("new_message", {"text": message, "sender": sender})
+                # Send to specific session room instead of broadcasting
+                sio.emit("new_message", {
+                    "text": message, 
+                    "sender": sender,
+                    "session_id": self.session_id
+                }, room=self.session_id)
 
             # Only save to Firebase if it's available
             if db is not None:
@@ -667,7 +686,8 @@ class ConversationBot:
                     "user_role": self.user_role,
                     "selected_issue": self.selected_issue,
                     "speaker_turns_completed": self.speaker_turns_completed,
-                    "listener_turns_completed": self.listener_turns_completed
+                    "listener_turns_completed": self.listener_turns_completed,
+                    "session_id": self.session_id
                 })
 
         except Exception as e:

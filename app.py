@@ -9,18 +9,22 @@ from speech.speech_model import speech_model
 
 # Initialize Flask and SocketIO
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key_here'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key_here')
+
+# Production-friendly SocketIO configuration
 socketio = SocketIO(app, 
     cors_allowed_origins="*",
     ping_timeout=60,
     ping_interval=25,
-    async_mode='threading',
+    async_mode='eventlet',  # Use eventlet for production
     logger=False,  # Disable socketio logging
     engineio_logger=False,  # Disable engine logging
     reconnection=True,
     reconnection_attempts=5,
     reconnection_delay=1000,
-    reconnection_delay_max=5000
+    reconnection_delay_max=5000,
+    allow_upgrades=True,
+    transports=['polling', 'websocket']
 )
 
 # Global variable for selected character
@@ -189,4 +193,11 @@ def handle_bot_audio_ended():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port)
+    debug = os.environ.get("FLASK_ENV") == "development"
+    
+    if debug:
+        # Development mode - use built-in server
+        socketio.run(app, host="0.0.0.0", port=port, debug=True)
+    else:
+        # Production mode - use with WSGI server (gunicorn)
+        socketio.run(app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)

@@ -139,7 +139,7 @@ def listen_for_speech():
     Returns the transcription or None.
     """
     RATE = 16000
-    PHRASE_TIME_LIMIT = 10
+    PHRASE_TIME_LIMIT = 30  # Extended from 10 to 30 seconds
     temp_filename = "temp_input.wav"
 
     try:
@@ -148,7 +148,7 @@ def listen_for_speech():
 
         with sr.Microphone(sample_rate=RATE) as source:
             recognizer.adjust_for_ambient_noise(source, duration=1)
-            audio = recognizer.listen(source, timeout=20, phrase_time_limit=PHRASE_TIME_LIMIT)
+            audio = recognizer.listen(source, timeout=45, phrase_time_limit=PHRASE_TIME_LIMIT)  # Extended timeout to 45 seconds
 
             with open(temp_filename, "wb") as f:
                 f.write(audio.get_wav_data())

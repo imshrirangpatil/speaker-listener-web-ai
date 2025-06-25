@@ -23,7 +23,7 @@ def listen_for_speech():
             socketio.emit('listening', {'active': True})
 
             recognizer.adjust_for_ambient_noise(source, duration=1)
-            audio = recognizer.listen(source, timeout=20, phrase_time_limit=20)
+            audio = recognizer.listen(source, timeout=45, phrase_time_limit=30)
             text = recognizer.recognize_google(audio)
 
             # Notify frontend: done listening
@@ -65,7 +65,7 @@ def speak_text(text):
 
             socketio.on_event("bot_audio_ended", handle_audio_end)
 
-            playback_done.wait(timeout=12)  # wait max 12s fallback
+            playback_done.wait(timeout=20)  # Extended wait max to 20s fallback
 
             return "streamed"
         else:

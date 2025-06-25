@@ -216,7 +216,7 @@ async function playNextAudio() {
 function initSpeechRecognition() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.continuous = false;
+        recognition.continuous = true;  // Keep listening for multiple phrases
         recognition.interimResults = false;
         recognition.lang = 'en-US';
         
@@ -227,29 +227,63 @@ function initSpeechRecognition() {
         };
         
         recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
+            const transcript = event.results[event.results.length - 1][0].transcript.trim();
             console.log('[CLIENT] Speech recognized:', transcript);
             
-            // Send to server with session ID
-            socket.emit('user_speech', { text: transcript, session_id: sessionId });
-            
-            // Add to chat
-            addMessage(transcript, 'user');
-            
-            // Update input field
-            if (messageInput) messageInput.value = transcript;
+            // Only process if transcript is meaningful (not empty or just punctuation)
+            if (transcript.length > 0 && transcript.match(/[a-zA-Z]/)) {
+                // Send to server with session ID
+                socket.emit('user_speech', { text: transcript, session_id: sessionId });
+                
+                // Add to chat
+                addMessage(transcript, 'user');
+                
+                // Update input field
+                if (messageInput) messageInput.value = transcript;
+                
+                // Stop recognition after successful capture
+                recognition.stop();
+            } else {
+                console.log('[CLIENT] Ignoring empty or invalid transcript');
+            }
         };
         
         recognition.onerror = (event) => {
             console.error('[CLIENT] Speech recognition error:', event.error);
             isListening = false;
             if (micButton) micButton.classList.remove('listening');
+            
+            // Auto-restart speech recognition for certain error types
+            if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                console.log('[CLIENT] Auto-restarting speech recognition due to:', event.error);
+                setTimeout(() => {
+                    if (micButton && micButton.classList.contains('active')) {
+                        try {
+                            recognition.start();
+                        } catch (error) {
+                            console.log('[CLIENT] Failed to restart speech recognition:', error);
+                        }
+                    }
+                }, 300); // Reduced from 1000ms to 300ms for faster restart
+            }
         };
         
         recognition.onend = () => {
             console.log('[CLIENT] Speech recognition ended');
             isListening = false;
             if (micButton) micButton.classList.remove('listening');
+            
+            // Auto-restart if microphone is still supposed to be active
+            if (micButton && micButton.classList.contains('active')) {
+                console.log('[CLIENT] Mic still active, restarting speech recognition...');
+                setTimeout(() => {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.log('[CLIENT] Failed to restart speech recognition:', error);
+                    }
+                }, 200); // Reduced from 500ms to 200ms for immediate restart
+            }
         };
     } else {
         console.error('[CLIENT] Speech recognition not supported');
@@ -295,14 +329,21 @@ function switchToSession() {
 // Socket.IO event handlers - only process messages for current session
 socket.on('new_message', (data) => {
     console.log('[CLIENT] New message received:', data);
+    console.log('[CLIENT] Current sessionId:', sessionId);
+    console.log('[CLIENT] Message session_id:', data.session_id);
+    console.log('[CLIENT] Session match:', !data.session_id || data.session_id === sessionId);
     // Only process messages for current session or without session ID (for system messages)
     if (!data.session_id || data.session_id === sessionId) {
         addMessage(data.text, data.sender);
+    } else {
+        console.log('[CLIENT] Message filtered out - session ID mismatch');
     }
 });
 
 socket.on('play_audio_base64', (data) => {
     console.log('[CLIENT] Audio received!');
+    console.log('[CLIENT] Current sessionId:', sessionId);
+    console.log('[CLIENT] Audio session_id:', data.session_id);
     console.log('[CLIENT] Audio data type:', typeof data.audio_base64);
     console.log('[CLIENT] Audio data length:', data.audio_base64 ? data.audio_base64.length : 'null');
     console.log('[CLIENT] MIME type:', data.mime);
@@ -315,6 +356,8 @@ socket.on('play_audio_base64', (data) => {
         } else {
             console.error('[CLIENT] Audio data is empty or null');
         }
+    } else {
+        console.log('[CLIENT] Audio filtered out - session ID mismatch');
     }
 });
 
@@ -330,8 +373,22 @@ socket.on('mic_activated', (data) => {
         if (micButton) {
             if (data.activated) {
                 micButton.classList.add('active');
+                // Auto-start speech recognition when mic is activated
+                if (recognition && !isListening) {
+                    console.log('[CLIENT] Auto-starting speech recognition...');
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.log('[CLIENT] Speech recognition already running or error:', error);
+                    }
+                }
             } else {
                 micButton.classList.remove('active');
+                // Stop speech recognition when mic is deactivated
+                if (recognition && isListening) {
+                    console.log('[CLIENT] Auto-stopping speech recognition...');
+                    recognition.stop();
+                }
             }
         }
     }
@@ -434,6 +491,13 @@ if (startButton) {
             console.log('[CLIENT] Session started:', data);
             if (data.status === 'success') {
                 sessionId = data.session_id;
+                console.log('[CLIENT] Reconnecting socket with session ID:', sessionId);
+                
+                // Disconnect and reconnect with correct session ID
+                socket.disconnect();
+                socket.io.opts.query = { session_id: sessionId };
+                socket.connect();
+                
                 switchToSession();
                 if (startButton) startButton.disabled = true;
             } else {

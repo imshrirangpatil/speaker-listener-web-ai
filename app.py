@@ -12,12 +12,34 @@ import time
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
+# Determine async mode based on environment and availability
+def get_async_mode():
+    # Try eventlet first (best for production)
+    try:
+        import eventlet
+        return 'eventlet'
+    except ImportError:
+        pass
+    
+    # Try gevent as fallback
+    try:
+        import gevent
+        return 'gevent'
+    except ImportError:
+        pass
+    
+    # Fallback to threading for development
+    return 'threading'
+
+async_mode = get_async_mode()
+print(f"[SERVER] Using async mode: {async_mode}")
+
 # Production-friendly SocketIO configuration
 socketio = SocketIO(app, 
     cors_allowed_origins="*",
     ping_timeout=60,
     ping_interval=25,
-    async_mode='eventlet',  # Use eventlet for production
+    async_mode=async_mode,
     logger=False,  # Disable socketio logging
     engineio_logger=False,  # Disable engine logging
     reconnection=True,
@@ -100,6 +122,17 @@ def home():
     
     return render_template("index.html", session_id=session['user_session_id'])
 
+@app.route("/v2", methods=["GET"])
+def home_v2():
+    """
+    Serve the new modern UI (index1.html) for testing.
+    """
+    # Create a unique session ID for each user
+    if 'user_session_id' not in session:
+        session['user_session_id'] = str(uuid4())
+    
+    return render_template("index1.html", session_id=session['user_session_id'])
+
 @app.route("/start-session", methods=["POST"])
 def start_session():
     """
@@ -108,11 +141,13 @@ def start_session():
     data = request.get_json()
     character = data.get("character")
     
-    # Get or create session ID
-    if 'user_session_id' not in session:
-        session['user_session_id'] = str(uuid4())
+    # Always create a NEW unique session ID for each conversation
+    # This ensures separate Firebase documents for each conversation
+    new_session_id = str(uuid4())
     
-    session_id = session['user_session_id']
+    # Update the Flask session to use the new session ID
+    session['user_session_id'] = new_session_id
+    session_id = new_session_id
 
     if character:
         # Clean up any existing session for this user
@@ -125,12 +160,12 @@ def start_session():
             'active': True
         }
         
-        print(f"[SERVER] Starting bot for session {session_id} with character: {character}")
+        print(f"[SERVER] Starting NEW conversation session {session_id} with character: {character}")
         Thread(target=run_bot, args=(character, session_id)).start()
         
         return jsonify({
             "status": "success",
-            "message": f"Bot started with character: {character}",
+            "message": f"New conversation started with character: {character}",
             "session_id": session_id
         })
     else:
@@ -142,9 +177,19 @@ def start_session():
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection and assign to room"""
-    # Get session ID from client or create new one
-    session_id = request.args.get('session_id') or str(uuid4())
-    session['user_session_id'] = session_id
+    # Get session ID from client query parameter or use existing Flask session
+    session_id = request.args.get('session_id')
+    
+    if session_id:
+        # This is likely a bot subprocess connecting with specific session ID
+        print(f"[SERVER] Bot connecting with session ID: {session_id}")
+        session['user_session_id'] = session_id
+    else:
+        # This is likely a frontend client - use existing Flask session or create new
+        if 'user_session_id' not in session:
+            session['user_session_id'] = str(uuid4())
+        session_id = session['user_session_id']
+        print(f"[SERVER] Frontend connecting with session ID: {session_id}")
     
     # Join user to their own room for isolated communication
     join_room(session_id)
@@ -174,13 +219,19 @@ def handle_end_session():
         emit('session_ended', {'session_id': session_id}, room=session_id)
 
 @socketio.on('mic_activated')
-def emit_mic_activated(data):
-    """Emit mic activation status to the specific user session."""
-    session_id = session.get('user_session_id')
-    if session_id:
-        activated = data.get("activated")
-        if activated in [True, False]:
-            emit('mic_activated', {'activated': activated}, room=session_id)
+def handle_mic_activated(data):
+    """Handle mic activation from bot or relay to specific user session."""
+    target_session = data.get('session_id')
+    if target_session:
+        # Message from bot subprocess - relay to user session
+        emit('mic_activated', data, room=target_session)
+    else:
+        # Message from frontend - relay within current session
+        session_id = session.get('user_session_id')
+        if session_id:
+            activated = data.get("activated")
+            if activated in [True, False]:
+                emit('mic_activated', {'activated': activated}, room=session_id)
 
 @socketio.on('user_speech')
 def handle_user_speech(data):
@@ -188,9 +239,11 @@ def handle_user_speech(data):
     session_id = session.get('user_session_id')
     if session_id:
         user_text = data.get('text', '')
+        print(f"[SERVER] Received user speech for session {session_id}: {user_text}")
         # Emit to specific session room only
         emit('new_message', {'text': user_text, 'sender': 'user'}, room=session_id)
         emit('user_input', {'text': user_text, 'session_id': session_id}, room=session_id)
+        print(f"[SERVER] Emitted user_input to room {session_id}")
 
 @socketio.on('play_audio_base64')
 def handle_play_audio_base64(data):
@@ -223,6 +276,18 @@ def handle_bot_audio_ended(data=None):
     if session_id:
         # Relay this to the bot process for this specific session
         emit('bot_audio_ended', {'session_id': session_id}, room=session_id)
+
+@socketio.on('tts_failed')
+def handle_tts_failed(data):
+    """Relay TTS failed messages to specific user session."""
+    target_session = data.get('session_id')
+    if target_session:
+        emit('tts_failed', data, room=target_session)
+    else:
+        # Fallback to current session
+        session_id = session.get('user_session_id')
+        if session_id:
+            emit('tts_failed', data, room=session_id)
 
 # Cleanup inactive sessions periodically
 def cleanup_inactive_sessions():

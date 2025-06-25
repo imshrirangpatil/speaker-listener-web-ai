@@ -46,8 +46,8 @@ SERVER_URL = os.environ.get("SERVER_URL", "http://127.0.0.1:5000")
 
 # Try to connect to SocketIO server with error handling and reconnection
 try:
-    sio.connect(SERVER_URL)
-    print(f"[INFO] Connected to SocketIO server at {SERVER_URL}")
+    # Don't connect here - wait until we have the session ID
+    pass
 except Exception as e:
     print(f"[WARNING] Failed to connect to SocketIO server: {e}")
     print("[INFO] Will attempt to reconnect automatically...")
@@ -64,6 +64,11 @@ def disconnect():
 @sio.event
 def connect_error(data):
     print(f"[WARNING] Connection error: {data}")
+
+@sio.event  
+def session_assigned(data):
+    print(f"[BOT] Received session assignment: {data}")
+    # The server is assigning us a session ID - this should match our intended session
 
 class ConversationBot:
     def __init__(self, character_type=None, llm_provider="openai", session_id=None):
@@ -94,20 +99,48 @@ class ConversationBot:
         self.introduced = False  # Track if the bot has introduced itself
         self.role_explained = False  # Track if role explanations have been given
 
+        # Connect to SocketIO server with session ID
+        self.connect_to_server()
+        
         sio.on("bot_audio_ended", self.on_audio_finished)
         sio.on("user_input", self.on_user_input)
         self.waiting_for_audio_end = False
         self.waiting_for_user_input = False
         self.user_input_received = None
 
+    def connect_to_server(self):
+        """Connect to SocketIO server with session ID"""
+        try:
+            # Connect with session ID parameter so server assigns us to correct room
+            connect_url = f"{SERVER_URL}?session_id={self.session_id}"
+            sio.connect(connect_url)
+            print(f"[INFO] Connected to SocketIO server at {connect_url}")
+        except Exception as e:
+            print(f"[WARNING] Failed to connect to SocketIO server: {e}")
+            print("[INFO] Will attempt to reconnect automatically...")
+
     def on_audio_finished(self, data=None):
         self.waiting_for_audio_end = False
 
     def wait_for_audio_to_finish(self):
         self.waiting_for_audio_end = True
-        timeout = time.time() + 12
+        timeout = time.time() + 20  # Extended from 12 to 20 seconds for audio playback
         while self.waiting_for_audio_end and time.time() < timeout:
             time.sleep(0.1)
+
+    def add_natural_pause(self, message_type="normal"):
+        """Add natural conversational pauses for more realistic bot pacing"""
+        pause_durations = {
+            "introduction": 1.0,    # Longer pause after introductions
+            "transition": 0.8,      # Pause when switching topics/roles  
+            "thinking": 0.6,        # Brief thinking pause
+            "normal": 0.4,          # Standard pause between messages
+            "quick": 0.2            # Short pause for confirmations
+        }
+        
+        duration = pause_durations.get(message_type, 0.8)
+        print(f"[BOT] Adding natural pause ({message_type}): {duration}s")
+        time.sleep(duration)
 
     def get_friendly_phrase(self):
         phrases = [
@@ -125,7 +158,9 @@ class ConversationBot:
     def send_friendly_introduction(self):
         if not self.introduced:
             self.send_and_wait("Hi, I'm Charisma Bot, your conversation partner. Let's have a friendly chat today!")
+            self.add_natural_pause("introduction")
             self.send_and_wait("Today, we'll practice the Speaker-Listener Technique. We'll take turns sharing and listening to understand each other better.")
+            self.add_natural_pause("normal")
             self.introduced = True
 
     def get_confirmation_prompt(self):
@@ -159,6 +194,25 @@ class ConversationBot:
         
         is_question = user_input.strip().endswith('?')
         paraphrased = paraphrase(user_input)
+        
+        # Check if paraphrased already has template phrases to avoid duplication
+        template_starters = ["it sounds like", "i hear you saying", "what i hear", "if i understand"]
+        already_has_template = any(paraphrased.lower().startswith(starter) for starter in template_starters)
+        
+        if already_has_template:
+            # Paraphrase function already provided a complete response
+            # Remove any quotes that might be causing duplication
+            paraphrased = paraphrased.replace('"', '').replace('"', '').replace('"', '')
+            return paraphrased
+        
+        # If the paraphrased text contains quotes, it might be a quoted response that needs unwrapping
+        if '"' in paraphrased or '"' in paraphrased or '"' in paraphrased:
+            # Extract the actual content from quotes
+            import re
+            quoted_match = re.search(r'["""]([^"""]+)["""]', paraphrased)
+            if quoted_match:
+                paraphrased = quoted_match.group(1).strip()
+        
         if paraphrased.lower().startswith("you said"):
             paraphrased = paraphrased[8:].strip(':,. ')
         # Remove unnecessary commas after templates
@@ -181,27 +235,27 @@ class ConversationBot:
             if any(word in question_content for word in ['do', 'does', 'can', 'could', 'would', 'should', 'have', 'has']):
                 # It's a genuine question, paraphrase it as such
                 templates = [
-                    f"What I hear you asking is {paraphrased}",
-                    f"If I understand you right, you're wondering {paraphrased}",
-                    f"It sounds like you're questioning {paraphrased}"
+                    f"What I hear you asking is: {paraphrased}",
+                    f"If I understand you right, you're wondering: {paraphrased}",
+                    f"It sounds like you're questioning: {paraphrased}"
                 ]
             else:
                 # It might be a rhetorical question or statement
                 templates = [
-                    f"What I hear you saying is {paraphrased}",
-                    f"If I understand you right, {paraphrased}",
-                    f"It sounds like you're {paraphrased}"
+                    f"What I hear you saying is: {paraphrased}",
+                    f"If I understand you right: {paraphrased}",
+                    f"It sounds like: {paraphrased}"
                 ]
         else:
             templates = [
-                f"What I hear you saying is {paraphrased}",
-                f"If I understand you right, {paraphrased}",
-                f"It sounds like you're {paraphrased}"
+                f"What I hear you saying is: {paraphrased}",
+                f"If I understand you right: {paraphrased}",
+                f"It sounds like: {paraphrased}"
             ]
         
         result = random.choice(templates)
         # Remove any double spaces or awkward punctuation
-        result = re.sub(r',?\s*:\s*', ', ', result)
+        result = re.sub(r',?\s*:\s*', ': ', result)
         result = result.replace(',,', ',').replace(' :', ':').replace(' .', '.').strip()
         # Remove unnecessary comma after 'It sounds like'
         result = re.sub(r'It sounds like,', 'It sounds like', result)
@@ -228,7 +282,6 @@ class ConversationBot:
                     continue
                 if self.is_goodbye(user_input):
                     self.send_and_wait("Goodbye! It was nice talking with you.")
-                    self.save_conversation()
                     return False
                 self.current_emotion = detect_emotion(user_input)
                 # Handle "So you said?" or similar
@@ -239,6 +292,7 @@ class ConversationBot:
                 paraphrased = self.paraphrase_for_listener(user_input)
                 last_paraphrase = paraphrased
                 self.send_and_wait(paraphrased)
+                self.add_natural_pause("quick")
                 self.send_and_wait(self.get_confirmation_prompt())
                 self.emit_mic_activated(True)
                 confirmation = self.listen()
@@ -308,14 +362,14 @@ class ConversationBot:
                         self.send_and_wait("Let's move on for now.")
                         self.listener_turns_completed += 1
                         break  # Exit the loop and proceed to problem-solving
-            self.save_conversation()
+            # Removed intermediate save - will save at conversation end
             if self.speaker_turns_completed >= 1 and self.listener_turns_completed >= 1:
                 return self.problem_solving_phase()
             else:
                 self.switch_roles()
                 return True
         except Exception as e:
-            self.save_conversation()
+            # Removed intermediate save - will save at conversation end
             return False
 
     def speaker_mode(self):
@@ -331,6 +385,7 @@ class ConversationBot:
                 i_statement = i_statement.strip() + '.'
             # Send the whole I-statement as one message
             self.send_and_wait(i_statement.strip())
+            self.add_natural_pause("thinking")
             self.send_and_wait("Can you tell me what you heard?")
             # Activate mic immediately after prompt - no wait_for_audio_to_finish() here
             self.emit_mic_activated(True)
@@ -357,7 +412,7 @@ class ConversationBot:
             print(f"[USER INPUT RECEIVED] {user_response}")
             if self.is_goodbye(user_response):
                 self.send_and_wait("Goodbye! It was nice talking with you.")
-                self.save_conversation()
+                # Removed intermediate save - will save at conversation end
                 return False
             
             # Check if user response is completely unrelated to the I-statement
@@ -392,6 +447,7 @@ class ConversationBot:
             
             paraphrased = self.paraphrase_for_listener(user_response)
             self.send_and_wait(paraphrased)
+            self.add_natural_pause("quick")
             self.send_and_wait(self.get_confirmation_prompt())
             self.emit_mic_activated(True)
             confirmation = self.listen()
@@ -435,7 +491,7 @@ class ConversationBot:
             return True
         except Exception as e:
             print(f"Error in speaker mode: {e}")
-            self.save_conversation()
+            # Removed intermediate save - will save at conversation end
             return False
 
     def generate_i_statement(self):
@@ -494,92 +550,147 @@ class ConversationBot:
         Send a message to the user with optional TTS and wait for audio to finish
         """
         try:
-            print(f"[BOT] Sending message: {text}")
+            print(f"[BOT] send_and_wait called with: {text[:50]}...")
             
             # Generate TTS audio using Groq
-            audio_data_url = groq_text_to_speech(text, return_bytes=False)
+            print(f"[BOT] Generating TTS audio")
+            try:
+                audio_data_url = groq_text_to_speech(text, return_bytes=False)
+            except Exception as tts_error:
+                print(f"[BOT] TTS error: {tts_error}")
+                audio_data_url = None
+            print(f"[BOT] TTS generation completed, audio_data_url: {bool(audio_data_url)}")
             
             if sio.connected:
+                print(f"[BOT] SocketIO is connected")
                 if audio_data_url:  # Only emit audio if TTS succeeded
                     # Extract base64 data from data URL
                     if audio_data_url.startswith("data:audio/wav;base64,"):
                         audio_base64 = audio_data_url.split(",")[1]
+                        print(f"[BOT] Emitting audio to session {self.session_id}")
                         sio.emit("play_audio_base64", {
                             "audio_base64": audio_base64, 
                             "mime": "audio/wav",
                             "session_id": self.session_id
-                        }, room=self.session_id)
+                        })
                         # Wait for audio to finish playing
+                        print(f"[BOT] Waiting for audio to finish")
                         self.wait_for_audio_to_finish()
+                        print(f"[BOT] Audio playback completed")
                     else:
                         # Fallback to old method
+                        print(f"[BOT] Using fallback audio method")
                         sio.emit("play_audio", {
                             "url": audio_data_url,
                             "session_id": self.session_id
-                        }, room=self.session_id)
+                        })
                         self.wait_for_audio_to_finish()
                 else:
                     # TTS failed, emit a notification and continue with text only
+                    print(f"[BOT] TTS failed, continuing with text only")
                     sio.emit("tts_failed", {
                         "message": "Audio unavailable - text message only",
                         "session_id": self.session_id
-                    }, room=self.session_id)
+                    })
                     # Brief pause to simulate speech timing
                     time.sleep(len(text) * 0.05)  # Rough estimate of speech duration
+                    
             else:
+                print(f"[BOT] SocketIO not connected, skipping audio")
                 # Brief pause
                 time.sleep(1)
-                    
+                
             # Always emit the text message
+            print(f"[BOT] Emitting text message")
             self.emit_message(text, "bot")
+            print(f"[BOT] send_and_wait completed for: {text[:50]}...")
             
         except Exception as e:
+            print(f"[ERROR] Exception in send_and_wait: {e}")
+            import traceback
+            print(f"[ERROR] Traceback: {traceback.format_exc()}")
             # Still emit the text message even if everything fails
             self.emit_message(text, "bot")
             # Brief pause
             time.sleep(1)
 
     def listen(self):
-        """
-        Wait for user input from the web interface instead of local microphone
-        """
-        print("[BOT] Waiting for user input from web interface...")
+        """Listen for user input with multiple retry attempts and proactive reactivation"""
         try:
-            # Instead of using local microphone, wait for user input via SocketIO
-            # This will be handled by the web interface
-            self.waiting_for_user_input = True
-            self.user_input_received = None
+            print(f"[BOT] Starting to listen for user input for session {self.session_id}")
             
-            print("[BOT] Set waiting_for_user_input to True")
+            max_attempts = 3  # Allow 3 attempts for user to respond
+            attempt = 1
             
-            # Set up a timeout for user input - increased to 60 seconds
-            timeout = time.time() + 60  # 60 second timeout
-            while self.waiting_for_user_input and time.time() < timeout:
-                time.sleep(0.1)
-                if self.user_input_received:
-                    result = self.user_input_received
-                    self.user_input_received = None
-                    self.waiting_for_user_input = False
-                    print(f"[USER] {result}")
-                    return result
+            while attempt <= max_attempts:
+                print(f"[BOT] Listen attempt {attempt}/{max_attempts}")
+                
+                self.waiting_for_user_input = True
+                self.user_input_received = None
+                
+                print("[BOT] Set waiting_for_user_input to True")
+                
+                # Set up a timeout for user input with shorter check intervals for responsiveness
+                timeout = time.time() + 45  # Extended from 30 to 45 second timeout
+                last_keepalive = time.time()
+                keepalive_interval = 5  # Reduced from 10 to 5 seconds for more frequent microphone reactivation
+                
+                while self.waiting_for_user_input and time.time() < timeout:
+                    time.sleep(0.1)
+                    
+                    # Check for user input
+                    if self.user_input_received:
+                        result = self.user_input_received
+                        self.user_input_received = None
+                        self.waiting_for_user_input = False
+                        print(f"[BOT] Received user input: {result}")
+                        return result
+                    
+                    # Send periodic keep-alive microphone signals to maintain responsiveness
+                    current_time = time.time()
+                    if current_time - last_keepalive > keepalive_interval:
+                        print(f"[BOT] Sending microphone keep-alive signal (attempt {attempt})")
+                        self.emit_mic_activated(True)
+                        last_keepalive = current_time
+                
+                print(f"[BOT] Timeout on attempt {attempt} waiting for user input (45 seconds)")
+                self.waiting_for_user_input = False
+                
+                # If not the last attempt, reactivate microphone and try again
+                if attempt < max_attempts:
+                    print(f"[BOT] Reactivating microphone for attempt {attempt + 1}")
+                    self.emit_mic_activated(True)
+                    time.sleep(0.5)  # Reduced from 2 seconds to 0.5 seconds for immediate reactivation
+                    attempt += 1
+                else:
+                    print("[BOT] All attempts exhausted, using default response")
+                    break
             
-            print("[BOT] Timeout waiting for user input")
-            self.waiting_for_user_input = False
-            return None
+            # Return a default response instead of None to keep conversation flowing
+            return "I'd like to talk about communication"
+            
         except Exception as e:
             print(f"[ERROR] Failed to listen for speech: {e}")
             self.waiting_for_user_input = False
-            return None
+            return "I'd like to talk about communication"
 
     def on_user_input(self, data):
         """Handle user input received from web interface"""
+        print(f"[BOT] Received user_input event: {data}")
+        print(f"[BOT] Bot waiting for input: {self.waiting_for_user_input}")
+        print(f"[BOT] Bot session ID: {self.session_id}")
+        
         if self.waiting_for_user_input:
             # Check if message is for this session
             message_session_id = data.get('session_id') if isinstance(data, dict) else None
+            print(f"[BOT] Message session ID: {message_session_id}")
+            
             if message_session_id and message_session_id != self.session_id:
+                print(f"[BOT] Ignoring message for different session: {message_session_id} != {self.session_id}")
                 return  # Ignore messages for other sessions
             
             user_text = data.get('text', '') if isinstance(data, dict) else str(data)
+            print(f"[BOT] Processing user input: {user_text}")
             self.user_input_received = user_text
             self.waiting_for_user_input = False
             
@@ -601,28 +712,14 @@ class ConversationBot:
                     "session_id": self.session_id
                 })
                 
-                # Save to Firebase immediately for user messages
-                if db is not None:
-                    try:
-                        db.collection("sessions").document(self.session_id).set({
-                            "session_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "bot_character": self.character_type,
-                            "history": self.conversation_history,
-                            "current_turn": self.turn_count,
-                            "bot_role": self.bot_role,
-                            "user_role": self.user_role,
-                            "selected_issue": self.selected_issue,
-                            "speaker_turns_completed": self.speaker_turns_completed,
-                            "listener_turns_completed": self.listener_turns_completed,
-                            "session_id": self.session_id
-                        })
-                    except Exception as e:
-                        pass
+                # Real-time Firebase save disabled to prevent overwrites
+                # Final save will happen in save_conversation() with unique timestamp
+                print(f"[BOT] User message added to conversation history for session {self.session_id}")
         else:
             print("[BOT] Not waiting for user input, ignoring message")
 
     def switch_roles(self):
-        self.save_conversation()
+        # Removed intermediate save - will save at conversation end
         self.bot_role = "listener" if self.bot_role == "speaker" else "speaker"
         self.user_role = "speaker" if self.bot_role == "listener" else "listener"
         # Increment turn count when roles switch
@@ -640,6 +737,7 @@ class ConversationBot:
                 self.send_and_wait("Let's switch roles now! Remember: as speaker, you share thoughts. As listener, I repeat what I hear.")
             else:
                 self.send_and_wait("Let's switch roles now! Remember: as speaker, I share thoughts. As listener, you repeat what you hear.")
+        self.add_natural_pause("transition")
         self.send_and_wait(self.get_friendly_phrase())
 
     def emit_mic_activated(self, activated):
@@ -649,7 +747,7 @@ class ConversationBot:
                 sio.emit('mic_activated', {
                     'activated': activated,
                     'session_id': self.session_id
-                }, room=self.session_id)
+                })
         except Exception as e:
             pass
 
@@ -668,39 +766,34 @@ class ConversationBot:
             })
 
             if sio.connected:
+                print(f"[BOT] Emitting message: {message[:50]}... from {sender} for session {self.session_id}")
                 # Send to specific session room instead of broadcasting
                 sio.emit("new_message", {
                     "text": message, 
                     "sender": sender,
                     "session_id": self.session_id
-                }, room=self.session_id)
-
-            # Only save to Firebase if it's available
-            if db is not None:
-                db.collection("sessions").document(self.session_id).set({
-                    "session_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "bot_character": self.character_type,
-                    "history": self.conversation_history,
-                    "current_turn": self.turn_count,
-                    "bot_role": self.bot_role,
-                    "user_role": self.user_role,
-                    "selected_issue": self.selected_issue,
-                    "speaker_turns_completed": self.speaker_turns_completed,
-                    "listener_turns_completed": self.listener_turns_completed,
-                    "session_id": self.session_id
                 })
+                print(f"[BOT] Message emitted successfully")
+
+            # Save to Firebase with unique document ID - only at end of conversation to avoid overwrites
+            # Real-time saves disabled to prevent multiple users overwriting same document
+            # Final save will happen in save_conversation() with unique timestamp
 
         except Exception as e:
             print(f"[ERROR] Failed to emit message: {e}")
 
     def integrated_mode(self):
+        print(f"[BOT] Starting integrated_mode for session {self.session_id}")
         conversation_rounds = 0
         max_rounds = 5  # Limit conversation to prevent infinite loops
         
         # Start with issue selection phase
+        print(f"[BOT] Starting issue selection phase")
         if not self.issue_selection_phase():
+            print(f"[BOT] Issue selection phase failed, ending conversation")
             return
         
+        print(f"[BOT] Issue selection completed, starting conversation rounds")
         while conversation_rounds < max_rounds:
             print(f"[BOT] Starting conversation round {conversation_rounds + 1}/{max_rounds}")
             
@@ -714,30 +807,39 @@ class ConversationBot:
                 break
                 
             conversation_rounds += 1
-            self.save_conversation()
         
         if conversation_rounds >= max_rounds:
             self.send_and_wait("Thank you for this wonderful conversation! Let's wrap up here.")
             print("[BOT] Conversation completed - reached maximum rounds")
         
-        self.save_conversation()
+        # Removed save_conversation() - it's handled by problem_solving_phase at conversation end
+        print(f"[BOT] Integrated mode completed for session {self.session_id}")
 
     def issue_selection_phase(self):
         try:
             print("[BOT] Starting issue selection phase")
             self.send_friendly_introduction()
+            print("[BOT] Introduction sent")
+            
             topics = self.generate_issue_suggestions()
             prompt = f"What would you like to talk about today? For example: {topics}, or your own topic."
             self.send_and_wait(prompt)
+            print("[BOT] Topic prompt sent, activating mic")
+            
             self.emit_mic_activated(True)
             user_issue = self.listen()
             self.emit_mic_activated(False)
+            print(f"[BOT] Received user issue: {user_issue}")
+            
             if not user_issue or len(user_issue.strip()) < 3:
                 self.send_and_wait("Please tell me more about your issue.")
                 self.emit_mic_activated(True)
                 user_issue = self.listen()
                 self.emit_mic_activated(False)
+            
             cleaned_issue = self.clean_issue_choice(user_issue)
+            print(f"[BOT] Cleaned issue: {cleaned_issue}")
+            
             vague_phrases = [
                 "something else", "my own issue", "my own topic", "different issue", "other issue", "another issue", "i want to discuss", "i would like to discuss", "i'd like to discuss", "i want to talk about", "i would like to talk about"
             ]
@@ -752,11 +854,18 @@ class ConversationBot:
                     self.selected_issue = "a topic of your choice"
             else:
                 self.selected_issue = self.clean_and_paraphrase_issue(cleaned_issue, natural=True)
+            
+            print(f"[BOT] Final selected issue: {self.selected_issue}")
             self.send_and_wait(f"Thanks for sharing. We'll talk about: {self.selected_issue}")
+            self.add_natural_pause("thinking")
             self.send_and_wait("I'll start as speaker. You listen.")
+            self.add_natural_pause("transition")
+            print("[BOT] Issue selection phase completed successfully")
             return True
         except Exception as e:
             print(f"Error in issue selection phase: {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             return False
 
     def clean_issue_choice(self, user_input):
@@ -791,19 +900,87 @@ class ConversationBot:
         return cleaned.capitalize()
 
     def clean_and_paraphrase_issue(self, user_input, natural=False):
-        # Use LLM paraphrase for awkward or unclear user input
+        """Clean and properly summarize the user's selected issue using LLM."""
         cleaned = user_input.strip()
         if len(cleaned) < 5 or cleaned.lower() in ["yes", "no", "ok", "okay"]:
             return "a personal topic you'd like to discuss" if natural else "a personal issue you'd like to discuss"
-        # Use LLM paraphrase, but keep under 12 words
-        paraphrased = paraphrase(cleaned)
-        if natural:
-            # Remove 'You said:' and make it a natural phrase
-            if paraphrased.lower().startswith("you said"):
-                paraphrased = paraphrased[8:].strip(':,. ')
-            paraphrased = re.sub(r'^[:.,\s]+', '', paraphrased)
-            return paraphrased[0].upper() + paraphrased[1:] if paraphrased else "your personal topic"
-        return paraphrased if len(paraphrased.split()) <= 12 else "Let's talk about your main concern."
+        
+        # Use LLM for intelligent issue summarization
+        prompt = f"""Summarize this topic into a clear, natural phrase for conversation:
+
+User input: "{cleaned}"
+
+Create a summary that:
+1. Captures the main topic clearly
+2. Uses natural, grammatically correct language
+3. Keeps it under 12 words
+4. Makes it suitable for "We'll talk about: [summary]"
+5. Avoids awkward phrasing or repetition
+6. Uses proper capitalization and spacing
+7. Focuses on the core issue or topic
+
+Examples:
+- "homework and how hard working it is" → "managing homework workload and stress"
+- "balancing work and life" → "work-life balance"
+- "my relationship problems" → "relationship challenges"
+
+Only return the clean summary, nothing else."""
+
+        try:
+            response = self.llm_api.generate_response([{"role": "user", "content": prompt}])
+            
+            if response and response.strip():
+                summary = response.strip()
+                
+                # Ensure proper capitalization
+                if summary and not summary[0].isupper():
+                    summary = summary[0].lower() + summary[1:]
+                
+                # Remove any quotes or extra punctuation
+                summary = summary.strip('"\'.,;:')
+                
+                # Ensure it's not too long
+                if len(summary.split()) <= 12:
+                    return summary
+                else:
+                    # Truncate if too long
+                    return ' '.join(summary.split()[:12])
+            else:
+                # Fallback - clean the original input
+                return self.clean_issue_fallback(cleaned)
+                
+        except Exception as e:
+            print(f"Error in issue summarization: {e}")
+            return self.clean_issue_fallback(cleaned)
+    
+    def clean_issue_fallback(self, user_input):
+        """Fallback method to clean user input when LLM fails."""
+        cleaned = user_input.lower().strip()
+        
+        # Remove common prefixes
+        prefixes_to_remove = [
+            "i would like to talk about ",
+            "i want to talk about ",
+            "i'd like to discuss ",
+            "i want to discuss ",
+            "talking about ",
+            "discuss ",
+        ]
+        
+        for prefix in prefixes_to_remove:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):].strip()
+                break
+        
+        # Basic cleanup
+        if not cleaned or len(cleaned) < 3:
+            return "communication and understanding"
+        
+        # Ensure it doesn't start with articles unless necessary
+        if cleaned.startswith("the "):
+            cleaned = cleaned[4:]
+        
+        return cleaned
 
     def generate_issue_suggestions(self):
         issues = [
@@ -847,12 +1024,13 @@ class ConversationBot:
                     self.send_and_wait(collaborative_response)
             else:
                 self.send_and_wait("No worries. Let's brainstorm together. What would help you most?")
+            self.add_natural_pause("transition")
             self.send_and_wait("That was a great conversation! Thanks for practicing with me. Come back anytime you want to talk.")
             self.save_conversation()
             return False
         except Exception as e:
             print(f"Error in problem-solving phase: {e}")
-            self.save_conversation()
+            # Removed intermediate save - will save at conversation end
             return False
 
     def is_incomplete_input(self, text):
@@ -992,10 +1170,21 @@ class ConversationBot:
             
             print(f"[LOCAL] Session saved to {self.session_filename}")
             
-            # Save to Firebase with enhanced data
+            # Save to Firebase with unique document ID that includes timestamp
             if db is not None:
-                db.collection("sessions").document(self.session_id).set(conversation_data)
-                print(f"[FIREBASE] Session saved to Firebase with ID: {self.session_id}")
+                # Create unique document ID: session_id + timestamp to prevent overwrites
+                firebase_doc_id = f"{self.session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                
+                print(f"[FIREBASE] Saving conversation to document ID: {firebase_doc_id}")
+                db.collection("conversations").document(firebase_doc_id).set(conversation_data)
+                print(f"[FIREBASE] Conversation saved successfully to document: {firebase_doc_id}")
+                
+                # Also save to sessions collection for compatibility (but with unique ID)
+                sessions_doc_id = f"session_{self.session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                db.collection("sessions").document(sessions_doc_id).set(conversation_data)
+                print(f"[FIREBASE] Session also saved to sessions collection: {sessions_doc_id}")
+            else:
+                print("[FIREBASE] Firebase not available - skipping cloud save")
                 
         except Exception as e:
             print(f"[ERROR] Failed to save conversation: {e}")
@@ -1009,11 +1198,20 @@ class ConversationBot:
 
     def main_loop(self):
         try:
+            print(f"[BOT] main_loop started for session {self.session_id}")
+            print(f"[BOT] About to call integrated_mode()")
             self.integrated_mode()
+            print(f"[BOT] integrated_mode() completed")
         except KeyboardInterrupt:
             print("\n[INFO] Keyboard Interrupt detected. Saving conversation...")
             self.save_conversation()
             sys.exit(0)
+        except Exception as e:
+            print(f"[ERROR] Exception in main_loop: {e}")
+            import traceback
+            print(f"[ERROR] Traceback: {traceback.format_exc()}")
+            self.save_conversation()
+            sys.exit(1)
 
     def is_user_paraphrase(self, user_input):
         # Detect if user input is a paraphrase/confirmation

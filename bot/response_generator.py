@@ -35,29 +35,63 @@ def generate_response(user_input, character_type):
         return "I appreciate your input. Let's continue."
 
 def paraphrase(text):
-    """Simple paraphrasing of text."""
+    """Enhanced paraphrasing using LLM for better Speaker-Listener Technique responses."""
     try:
         # Remove filler words and clean up text
         filler_words = ['um', 'uh', 'like', 'you know', 'well']
-        cleaned_text = text.lower()
+        cleaned_text = text.strip()
         for word in filler_words:
-            cleaned_text = cleaned_text.replace(word, '')
+            cleaned_text = cleaned_text.replace(f' {word} ', ' ').replace(f'{word} ', '').replace(f' {word}', '')
         
-        # Basic paraphrasing templates
-        if cleaned_text.startswith('i think'):
-            cleaned_text = cleaned_text.replace('i think', '').strip()
-            return f"You believe that{cleaned_text}"
-        elif cleaned_text.startswith('i feel'):
-            cleaned_text = cleaned_text.replace('i feel', '').strip()
-            return f"You're feeling{cleaned_text}"
-        elif cleaned_text.startswith('i want'):
-            cleaned_text = cleaned_text.replace('i want', '').strip()
-            return f"You would like{cleaned_text}"
+        # Use LLM for intelligent paraphrasing following Speaker-Listener Technique principles
+        prompt = f"""Paraphrase this statement using proper Speaker-Listener Technique:
+        
+Original: "{cleaned_text}"
+
+Create a paraphrase that:
+1. Shows you heard and understood the speaker
+2. Reflects back the emotion and content accurately
+3. Uses "I hear you saying..." or "It sounds like you feel..." patterns
+4. Maintains the speaker's original meaning exactly
+5. Uses proper grammar with correct spacing and capitalization
+6. Keeps it under 25 words
+7. Shows empathy and validation
+8. Avoids simply repeating their exact words
+
+Only return the paraphrase, nothing else."""
+
+        response = llm_api.generate_response([{"role": "user", "content": prompt}])
+        
+        if response and response.strip():
+            paraphrased = response.strip()
+            
+            # Ensure proper sentence structure
+            if not paraphrased.endswith(('.', '!', '?')):
+                paraphrased += '.'
+            
+            # Capitalize first letter
+            if paraphrased:
+                paraphrased = paraphrased[0].upper() + paraphrased[1:]
+            
+            return paraphrased
         else:
-            return f"You said that {cleaned_text}"
+            # Fallback with proper spacing and grammar
+            if cleaned_text.lower().startswith('i feel'):
+                emotion_part = cleaned_text[6:].strip()
+                return f"I hear you saying that you feel {emotion_part}."
+            elif cleaned_text.lower().startswith('i think'):
+                thought_part = cleaned_text[7:].strip()
+                return f"It sounds like you believe that {thought_part}."
+            elif cleaned_text.lower().startswith('i want'):
+                desire_part = cleaned_text[6:].strip()
+                return f"I understand that you would like {desire_part}."
+            else:
+                return f"I hear you saying that {cleaned_text.lower()}."
             
     except Exception as e:
-        return text  # Return original text if paraphrasing fails
+        print(f"Error in paraphrasing: {e}")
+        # Safe fallback
+        return f"I hear you saying: {text.strip()}."
 
 def generate_topic(character_type):
     """Generate a topic-related statement based on the user's personality type."""

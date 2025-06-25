@@ -179,7 +179,7 @@
     }
 
     footer a {
-      color: #5ced73;
+      color: #4CAF50;
       text-decoration: none;
     }
   </style>
@@ -270,6 +270,13 @@
     .then(data => {
       if (data.status === "success") {
         sessionId = data.session_id;
+        console.log('[CLIENT] Session started, reconnecting socket with session ID:', sessionId);
+        
+        // Disconnect and reconnect with correct session ID
+        socket.disconnect();
+        socket.io.opts.query = { session_id: sessionId };
+        socket.connect();
+        
         document.getElementById("setup-ui").style.display = "none";
         const initially_hidden = document.getElementById("initially-hidden");
         initially_hidden.classList.remove("hidden");
@@ -337,16 +344,47 @@
   function updateMicStatus(activated) {
     const bubble = document.getElementById("voice-bubble");
     const icon = document.getElementById("role-icon");
+    
     if (activated) {
       bubble.classList.remove("launching");
       bubble.classList.remove("mic-off");
       bubble.classList.add("mic-on");
       icon.textContent = "🎤";
+      isListening = true;
+      
     } else {
       bubble.classList.remove("launching");
       bubble.classList.remove("mic-on");
       bubble.classList.add("mic-off");
       icon.textContent = "🔊";
+      isListening = false;
+    }
+  }
+
+  // Add click-to-speak functionality
+  function toggleSpeechRecognition() {
+    if (!isListening) {
+      console.log('[CLIENT] Bot is not listening, ignoring click');
+      return;
+    }
+    
+    if (!recognition) {
+      console.error('[CLIENT] Speech recognition not initialized');
+      alert('Speech recognition not available. Please use a supported browser (Chrome/Edge).');
+      return;
+    }
+    
+    if (isRecording) {
+      console.log('[CLIENT] Stopping manual voice recognition');
+      recognition.stop();
+    } else {
+      console.log('[CLIENT] Starting manual voice recognition');
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('[CLIENT] Failed to start voice recognition:', error);
+        alert('Unable to start voice recognition. Please try clicking again.');
+      }
     }
   }
 
@@ -371,6 +409,74 @@
   function reportBug() {
     window.open('https://docs.google.com/forms/d/e/1FAIpQLSdf-rvSeMAqlF_iRflrT5DP-g9Q7CJEmnkNTIIr8ouiZ2GOLw/viewform?usp=dialog', '_blank');
   }
+
+  // Voice recognition for user input
+  let recognition;
+  let isRecording = false;
+  let isListening = false;
+
+  function initVoiceRecognition() {
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      console.log("Using webkitSpeechRecognition");
+    } else if ('SpeechRecognition' in window) {
+      recognition = new SpeechRecognition();
+      console.log("Using SpeechRecognition");
+    } else {
+      console.error("Speech recognition not supported in this browser");
+      alert("Speech recognition is not supported in your browser. Please use Chrome or Edge for the best experience.");
+      return;
+    }
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+      console.log("Speech recognition started");
+      isRecording = true;
+    };
+
+    recognition.onresult = function(event) {
+      const transcript = event.results[0][0].transcript;
+      console.log("User said:", transcript);
+      
+      if (sessionId) {
+        // Send to server with session ID
+        socket.emit("user_speech", { text: transcript, session_id: sessionId });
+      }
+    };
+
+    recognition.onerror = function(event) {
+      console.error("Speech recognition error:", event.error);
+      isRecording = false;
+    };
+
+    recognition.onend = function() {
+      console.log("Speech recognition ended");
+      isRecording = false;
+    };
+  }
+
+  // Handle page unload
+  window.addEventListener('beforeunload', () => {
+    if (sessionId) {
+      socket.emit('end_session');
+    }
+  });
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    initVoiceRecognition();
+    
+    // Add click event to voice bubble for manual speech recognition
+    const voiceBubble = document.getElementById('voice-bubble');
+    if (voiceBubble) {
+      voiceBubble.addEventListener('click', toggleSpeechRecognition);
+      voiceBubble.style.cursor = 'pointer';
+    }
+  });
 
   // Handle messages only for current session
   socket.on("new_message", (data) => {
@@ -432,67 +538,24 @@
   socket.on("mic_activated", (data) => {
     if (!data.session_id || data.session_id === sessionId) {
       updateMicStatus(data.activated);
-    }
-  });
-
-  // Voice recognition for user input
-  let recognition;
-  let isRecording = false;
-  let isListening = false;
-
-  function initVoiceRecognition() {
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new webkitSpeechRecognition();
-      console.log("Using webkitSpeechRecognition");
-    } else if ('SpeechRecognition' in window) {
-      recognition = new SpeechRecognition();
-      console.log("Using SpeechRecognition");
-    } else {
-      console.error("Speech recognition not supported in this browser");
-      alert("Speech recognition is not supported in your browser. Please use Chrome or Edge.");
-      return;
-    }
-
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = function() {
-      console.log("Speech recognition started");
-      isRecording = true;
-    };
-
-    recognition.onresult = function(event) {
-      const transcript = event.results[0][0].transcript;
-      console.log("User said:", transcript);
       
-      if (sessionId) {
-        // Send to server with session ID
-        socket.emit("user_speech", { text: transcript, session_id: sessionId });
+      // Automatically start/stop voice recognition when bot activates/deactivates mic
+      if (data.activated && !isRecording && recognition) {
+        console.log('[CLIENT] Starting voice recognition automatically');
+        try {
+          recognition.start();
+        } catch (error) {
+          console.error('[CLIENT] Failed to start voice recognition:', error);
+        }
+      } else if (!data.activated && isRecording && recognition) {
+        console.log('[CLIENT] Stopping voice recognition automatically');
+        try {
+          recognition.stop();
+        } catch (error) {
+          console.error('[CLIENT] Failed to stop voice recognition:', error);
+        }
       }
-    };
-
-    recognition.onerror = function(event) {
-      console.error("Speech recognition error:", event.error);
-      isRecording = false;
-    };
-
-    recognition.onend = function() {
-      console.log("Speech recognition ended");
-      isRecording = false;
-    };
-  }
-
-  // Handle page unload
-  window.addEventListener('beforeunload', () => {
-    if (sessionId) {
-      socket.emit('end_session');
     }
-  });
-
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    initVoiceRecognition();
   });
 </script>
 </body>

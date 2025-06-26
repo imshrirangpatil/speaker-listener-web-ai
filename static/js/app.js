@@ -63,36 +63,65 @@ let isListening = false;
 // Initialize audio context with iOS compatibility
 function initAudioContext() {
     console.log('[CLIENT] Initializing audio context...');
-    if (!audioContext) {
-        try {
-            // Use webkitAudioContext for iOS Safari compatibility
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            console.log('[CLIENT] Audio context created successfully');
-            console.log('[CLIENT] Audio context state:', audioContext.state);
+    
+    // Detect Safari
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    console.log('[CLIENT] Safari detected:', isSafari);
+    
+    if (window.AudioContext || window.webkitAudioContext) {
+        if (!audioContext) {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('[CLIENT] Audio context created, state:', audioContext.state);
+            } catch (error) {
+                console.error('[CLIENT] Failed to create audio context:', error);
+                return false;
+            }
+        }
+        
+        // Handle suspended context (common in Safari and iOS)
+        if (audioContext.state === 'suspended') {
+            console.log('[CLIENT] Audio context is suspended, attempting to resume...');
             
-            // Resume audio context if suspended (needed for Chrome and iOS)
-            if (audioContext.state === 'suspended') {
-                console.log('[CLIENT] Audio context suspended, attempting to resume...');
-                // For iOS, audio context needs user interaction to resume
+            // Safari-specific handling
+            if (isSafari) {
+                // Create a simple user interaction handler for Safari
                 const resumeAudio = () => {
                     audioContext.resume().then(() => {
-                        console.log('[CLIENT] Audio context resumed successfully');
-                        document.removeEventListener('touchstart', resumeAudio);
+                        console.log('[CLIENT] Audio context resumed successfully for Safari');
+                        // Remove listeners after successful resume
                         document.removeEventListener('click', resumeAudio);
+                        document.removeEventListener('touchstart', resumeAudio);
+                        document.removeEventListener('touchend', resumeAudio);
+                        document.removeEventListener('keydown', resumeAudio);
                     }).catch(error => {
-                        console.error('[CLIENT] Failed to resume audio context:', error);
+                        console.error('[CLIENT] Failed to resume audio context in Safari:', error);
                     });
                 };
                 
-                // Add event listeners for user interaction
-                document.addEventListener('touchstart', resumeAudio, { once: true });
+                // Add multiple event listeners for Safari
                 document.addEventListener('click', resumeAudio, { once: true });
+                document.addEventListener('touchstart', resumeAudio, { once: true });
+                document.addEventListener('touchend', resumeAudio, { once: true });
+                document.addEventListener('keydown', resumeAudio, { once: true });
+                
+                console.log('[CLIENT] Safari audio context resume listeners added');
+            } else {
+                // Standard resume for other browsers
+                audioContext.resume().then(() => {
+                    console.log('[CLIENT] Audio context resumed successfully');
+                }).catch(error => {
+                    console.error('[CLIENT] Failed to resume audio context:', error);
+                });
             }
-        } catch (error) {
-            console.error('[CLIENT] Failed to create audio context:', error);
+        } else {
+            console.log('[CLIENT] Audio context is ready');
         }
+        
+        return true;
     } else {
-        console.log('[CLIENT] Audio context already exists');
+        console.error('[CLIENT] Web Audio API not supported');
+        return false;
     }
 }
 
@@ -101,14 +130,31 @@ function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
     return new Promise((resolve, reject) => {
         console.log('[CLIENT] Starting audio playback from base64...');
         
-        // Detect iOS devices
+        // Detect Safari (iOS and macOS)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || isIOS;
         
-        // For iOS, use HTML5 audio only (simpler and more reliable)
-        if (isIOS) {
-            console.log('[CLIENT] iOS detected, using HTML5 audio...');
-            const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
+        console.log(`[CLIENT] Browser detection: isIOS=${isIOS}, isSafari=${isSafari}`);
+        
+        // For Safari (both iOS and macOS), use HTML5 audio only (more reliable)
+        if (isSafari) {
+            console.log('[CLIENT] Safari detected, using HTML5 audio...');
+            
+            // Create audio element
+            const audio = new Audio();
+            
+            // Safari prefers MP3 over WAV
+            let audioFormat = mimeType;
+            if (mimeType === 'audio/wav' && !audio.canPlayType('audio/wav')) {
+                console.log('[CLIENT] WAV not supported, trying MP3...');
+                audioFormat = 'audio/mpeg';
+            }
+            
+            audio.src = `data:${audioFormat};base64,${audioBase64}`;
+            
+            // Preload for Safari
+            audio.preload = 'auto';
             
             audio.onended = () => {
                 console.log('[CLIENT] HTML5 audio playback completed');
@@ -118,27 +164,69 @@ function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
             
             audio.onerror = (error) => {
                 console.error('[CLIENT] HTML5 audio error:', error);
-                reject(error);
+                console.log('[CLIENT] Trying alternative audio format...');
+                
+                // Try with different format if original fails
+                const altFormat = audioFormat === 'audio/wav' ? 'audio/mpeg' : 'audio/wav';
+                audio.src = `data:${altFormat};base64,${audioBase64}`;
+                
+                const retryPlay = () => {
+                    const retryPromise = audio.play();
+                    if (retryPromise !== undefined) {
+                        retryPromise.catch(retryError => {
+                            console.error('[CLIENT] Retry also failed:', retryError);
+                            reject(retryError);
+                        });
+                    }
+                };
+                
+                // Wait a bit before retry
+                setTimeout(retryPlay, 100);
             };
             
-            // Play audio (iOS requires user gesture)
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('[CLIENT] HTML5 audio started successfully');
-                }).catch(error => {
-                    console.error('[CLIENT] HTML5 audio play failed:', error);
-                    reject(error);
-                });
-            }
+            // Enhanced play handling for Safari
+            const playAudio = () => {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('[CLIENT] HTML5 audio started successfully');
+                    }).catch(error => {
+                        console.error('[CLIENT] HTML5 audio play failed:', error);
+                        console.log('[CLIENT] Error type:', error.name, 'Message:', error.message);
+                        
+                        // Safari often requires user interaction
+                        if (error.name === 'NotAllowedError' || error.message.includes('user activation')) {
+                            showNotification('Click "Enable Audio" to hear the bot speak', 'warning');
+                        }
+                        reject(error);
+                    });
+                } else {
+                    // Old browsers
+                    console.log('[CLIENT] Audio play() returned undefined (old browser)');
+                }
+            };
+            
+            // Load and play
+            audio.onloadeddata = () => {
+                console.log('[CLIENT] Audio data loaded, attempting to play...');
+                playAudio();
+            };
+            
+            // Fallback if onloadeddata doesn't fire
+            setTimeout(() => {
+                if (audio.readyState >= 2) { // HAVE_CURRENT_DATA
+                    playAudio();
+                }
+            }, 100);
+            
             return;
         }
         
-        // For non-iOS devices, try Web Audio API first
-        console.log('[CLIENT] Non-iOS device, trying Web Audio API...');
+        // For non-Safari browsers, try Web Audio API first
+        console.log('[CLIENT] Non-Safari browser, trying Web Audio API...');
         console.log('[CLIENT] Audio context state:', audioContext ? audioContext.state : 'no context');
         
-        // Fallback to HTML5 audio for non-iOS if Web Audio API fails
+        // Fallback to HTML5 audio for non-Safari if Web Audio API fails
         const fallbackToHTMLAudio = () => {
             console.log('[CLIENT] Falling back to HTML5 audio...');
             const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
@@ -572,3 +660,49 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage('Welcome to Charisma Bot! Select a character and click "Start Session" to begin.', 'system');
     }
 });
+
+// Add event listener for the Enable Audio button
+const enableAudioBtn = document.getElementById('enable-audio-btn');
+if (enableAudioBtn) {
+    enableAudioBtn.addEventListener('click', () => {
+        console.log('[CLIENT] Enable Audio button clicked');
+        
+        // Detect Safari for specific messaging
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // Initialize audio context
+        const audioInitialized = initAudioContext();
+        
+        if (audioInitialized || isSafari) {
+            // For Safari, show success even if Web Audio API fails (HTML5 audio will work)
+            const message = isSafari ? 
+                'Audio enabled for Safari! You should now hear the bot.' : 
+                'Audio enabled! You should now hear the bot.';
+            showNotification(message, 'success');
+            hideEnableAudioButton();
+            
+            // For Safari, also test a brief silent audio to ensure permission
+            if (isSafari) {
+                console.log('[CLIENT] Testing Safari audio permission...');
+                const testAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLHvr');
+                testAudio.volume = 0.01; // Very quiet
+                testAudio.play().then(() => {
+                    console.log('[CLIENT] Safari audio permission test passed');
+                }).catch((error) => {
+                    console.log('[CLIENT] Safari audio permission test failed:', error);
+                    showNotification('Please interact with the page to enable audio', 'warning');
+                });
+            }
+        } else {
+            showNotification('Audio not supported in this browser. Try Chrome for best results.', 'error');
+        }
+    });
+}
+
+function hideEnableAudioButton() {
+    const enableAudioBtn = document.getElementById('enable-audio-btn');
+    if (enableAudioBtn) {
+        enableAudioBtn.style.display = 'none';
+        console.log('[CLIENT] Enable Audio button hidden');
+    }
+}

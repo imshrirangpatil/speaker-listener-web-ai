@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Charisma | AI Counselor</title>
+  
+  <!-- Safari and iOS audio support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  
+  <title>Charisma Bot | AI SLT</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -179,7 +185,7 @@
     }
 
     footer a {
-      color: #3498db;
+      color: #4CAF50;
       text-decoration: none;
     }
   </style>
@@ -188,8 +194,8 @@
 
 <header>
   <div style="text-align: center; padding: 30px 0 10px;">
-    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 30px;" />
-    <h2 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Counselor</h2>
+    <img src="{{ url_for('static', filename='charisma-logo.png') }}" alt="Charisma Logo" style="height: 50px;" />
+    <h2 style="color: #d3d3d3; margin-top: 12px;">An AI-powered Speaker-Listener Bot</h2>
   </div>
 </header>
 

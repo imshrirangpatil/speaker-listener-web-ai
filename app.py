@@ -122,17 +122,6 @@ def home():
     
     return render_template("index.html", session_id=session['user_session_id'])
 
-@app.route("/v2", methods=["GET"])
-def home_v2():
-    """
-    Serve the new modern UI (index1.html) for testing.
-    """
-    # Create a unique session ID for each user
-    if 'user_session_id' not in session:
-        session['user_session_id'] = str(uuid4())
-    
-    return render_template("index1.html", session_id=session['user_session_id'])
-
 @app.route("/start-session", methods=["POST"])
 def start_session():
     """

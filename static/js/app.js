@@ -100,9 +100,45 @@ function initAudioContext() {
 function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
     return new Promise((resolve, reject) => {
         console.log('[CLIENT] Starting audio playback from base64...');
+        
+        // Detect iOS devices
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        // For iOS, use HTML5 audio only (simpler and more reliable)
+        if (isIOS) {
+            console.log('[CLIENT] iOS detected, using HTML5 audio...');
+            const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
+            
+            audio.onended = () => {
+                console.log('[CLIENT] HTML5 audio playback completed');
+                socket.emit('bot_audio_ended');
+                resolve();
+            };
+            
+            audio.onerror = (error) => {
+                console.error('[CLIENT] HTML5 audio error:', error);
+                reject(error);
+            };
+            
+            // Play audio (iOS requires user gesture)
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('[CLIENT] HTML5 audio started successfully');
+                }).catch(error => {
+                    console.error('[CLIENT] HTML5 audio play failed:', error);
+                    reject(error);
+                });
+            }
+            return;
+        }
+        
+        // For non-iOS devices, try Web Audio API first
+        console.log('[CLIENT] Non-iOS device, trying Web Audio API...');
         console.log('[CLIENT] Audio context state:', audioContext ? audioContext.state : 'no context');
         
-        // Fallback to HTML5 audio for iOS if Web Audio API fails
+        // Fallback to HTML5 audio for non-iOS if Web Audio API fails
         const fallbackToHTMLAudio = () => {
             console.log('[CLIENT] Falling back to HTML5 audio...');
             const audio = new Audio(`data:${mimeType};base64,${audioBase64}`);
@@ -118,7 +154,6 @@ function playAudioFromBase64(audioBase64, mimeType = 'audio/wav') {
                 reject(error);
             };
             
-            // iOS requires user interaction for audio playback
             const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.then(() => {

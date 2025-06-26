@@ -48,25 +48,19 @@ def paraphrase(text):
 
 Original: "{cleaned_text}"
 
-CRITICAL REQUIREMENTS:
-1. NEVER repeat their exact words verbatim
-2. Always transform pronouns: "I" becomes "you", "my" becomes "your", "me" becomes "you"
-3. Start with "I hear you saying that..." or "It sounds like you feel..." or "What I understand is..."
-4. Capture the EMOTION and MAIN POINT using DIFFERENT vocabulary
+Requirements:
+1. Start with "I hear you saying that..." or "It sounds like you feel..." or "What I understand is..."
+2. Translate from their perspective ("I") to your perspective ("you")
+3. Capture the EMOTION and MAIN POINT, not exact words
+4. Use different words than the original (NEVER repeat verbatim)
 5. Keep under 25 words
 6. Show empathy and understanding
-7. Transform the perspective completely - speak AS the listener TO the speaker
 
 Example transformations:
 - "I want you to know I'm overwhelmed" → "I hear you saying that you're feeling overwhelmed and want me to understand that"
 - "I feel stressed about work" → "It sounds like you're experiencing stress related to your work situation"
-- "I have been working for a while now and I need a break" → "I hear you saying that you've been working for some time and you need a break"
-- "I think I love chocolates" → "It sounds like you're expressing that you love chocolates"
 
-ABSOLUTELY FORBIDDEN:
-- Using "i need" when they said "I need" (must be "you need")
-- Using "i love" when they said "I love" (must be "you love") 
-- Repeating any exact phrases verbatim
+CRITICAL: Do NOT repeat their exact words. Rephrase using different vocabulary while keeping the same meaning.
 
 Only return the paraphrase, nothing else."""
 
@@ -74,23 +68,6 @@ Only return the paraphrase, nothing else."""
         
         if response and response.strip():
             paraphrased = response.strip()
-            
-            # Critical validation - check for forbidden patterns
-            original_lower = cleaned_text.lower()
-            paraphrased_lower = paraphrased.lower()
-            
-            # Check for verbatim repetition (forbidden)
-            if original_lower in paraphrased_lower or paraphrased_lower in original_lower:
-                print(f"[PARAPHRASE] LLM response contains verbatim repetition, using fallback")
-                return create_strict_fallback_paraphrase(cleaned_text)
-            
-            # Check for incorrect pronoun usage
-            if ("i need" in paraphrased_lower and "i need" in original_lower) or \
-               ("i love" in paraphrased_lower and "i love" in original_lower) or \
-               ("i want" in paraphrased_lower and "i want" in original_lower) or \
-               ("i think" in paraphrased_lower and "i think" in original_lower):
-                print(f"[PARAPHRASE] LLM failed pronoun transformation, using fallback")
-                return create_strict_fallback_paraphrase(cleaned_text)
             
             # Ensure proper sentence structure
             if not paraphrased.endswith(('.', '!', '?')):
@@ -103,58 +80,34 @@ Only return the paraphrase, nothing else."""
             return paraphrased
         else:
             # Enhanced fallback that properly paraphrases instead of repeating
-            return create_strict_fallback_paraphrase(cleaned_text)
+            if cleaned_text.lower().startswith('i feel'):
+                emotion_part = cleaned_text[6:].strip()
+                return f"It sounds like you're feeling {emotion_part}."
+            elif cleaned_text.lower().startswith('i think'):
+                thought_part = cleaned_text[7:].strip()
+                return f"I hear you expressing the belief that {thought_part}."
+            elif cleaned_text.lower().startswith('i want'):
+                desire_part = cleaned_text[6:].strip()
+                return f"I understand that you're hoping to {desire_part}."
+            elif cleaned_text.lower().startswith('i am') or cleaned_text.lower().startswith("i'm"):
+                state_part = cleaned_text.replace("i am", "").replace("i'm", "").strip()
+                return f"I hear you saying that you're {state_part}."
+            else:
+                # Generic paraphrase that transforms perspective
+                return f"What I understand from what you shared is: {cleaned_text.lower().replace('i ', 'you ').replace('my ', 'your ')}."
             
     except Exception as e:
         print(f"Error in paraphrasing: {e}")
         # Safe fallback that paraphrases instead of repeating
-        return create_strict_fallback_paraphrase(text)
-
-def create_strict_fallback_paraphrase(text):
-    """Create a strict paraphrase that NEVER repeats verbatim and always transforms pronouns"""
-    try:
         text_lower = text.lower().strip()
-        
-        # Specific transformations for common patterns
-        if text_lower.startswith('i have been'):
-            content = text_lower[11:].strip()
-            return f"I hear you saying that you've been {content}."
-        elif text_lower.startswith('i feel'):
-            emotion_part = text_lower[6:].strip()
-            return f"It sounds like you're feeling {emotion_part}."
-        elif text_lower.startswith('i think'):
-            thought_part = text_lower[7:].strip()
-            return f"I hear you expressing the belief that {thought_part}."
-        elif text_lower.startswith('i want'):
-            desire_part = text_lower[6:].strip()
-            return f"I understand that you're hoping {desire_part}."
-        elif text_lower.startswith('i need'):
-            need_part = text_lower[6:].strip()
-            return f"I hear you saying that you need {need_part}."
-        elif text_lower.startswith('i love'):
-            love_part = text_lower[6:].strip()
-            return f"It sounds like you're expressing that you love {love_part}."
-        elif text_lower.startswith('i am ') or text_lower.startswith("i'm "):
-            if text_lower.startswith("i'm "):
-                state_part = text_lower[4:].strip()
-            else:
-                state_part = text_lower[5:].strip()
-            return f"I hear you saying that you're {state_part}."
-        elif text_lower.startswith('i don\'t'):
-            negative_part = text_lower[7:].strip()
-            return f"I understand you're saying that you don't {negative_part}."
-        elif '?' in text_lower:
-            return f"I hear you asking about something important to you."
+        if 'i feel' in text_lower:
+            return f"It sounds like you're experiencing some feelings about this situation."
+        elif 'i want' in text_lower or 'i need' in text_lower:
+            return f"I hear you expressing what you're hoping for."
+        elif 'i think' in text_lower or 'i believe' in text_lower:
+            return f"I understand you're sharing your perspective on this."
         else:
-            # Generic transformation that changes structure and pronouns
-            transformed = text_lower.replace('i ', 'you ').replace('my ', 'your ').replace(' me ', ' you ').replace(' me.', ' you.').replace(' me,', ' you,')
-            # Clean up any awkward constructions
-            transformed = transformed.replace('you am', 'you are').replace('you\'m', 'you\'re')
-            return f"What I'm hearing is that {transformed}."
-            
-    except Exception as e:
-        print(f"Error in strict fallback paraphrase: {e}")
-        return "I hear you sharing something meaningful, and I want to understand it correctly."
+            return f"I hear you sharing something important with me."
 
 def generate_topic(character_type):
     """Generate a topic-related statement based on the user's personality type."""

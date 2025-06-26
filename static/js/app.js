@@ -525,15 +525,23 @@ socket.on('play_audio', (data) => {
 });
 
 socket.on('mic_activated', (data) => {
-    console.log('[CLIENT] Mic activation:', data.activated);
+    console.log('[CLIENT] Mic activation received:', data.activated);
+    console.log('[CLIENT] Current sessionId:', sessionId);
+    console.log('[CLIENT] Message session_id:', data.session_id);
+    console.log('[CLIENT] Session match:', !data.session_id || data.session_id === sessionId);
+    console.log('[CLIENT] Speech recognition available:', !!recognition);
+    console.log('[CLIENT] Currently listening:', isListening);
+    
     // Only process for current session or without session ID
     if (!data.session_id || data.session_id === sessionId) {
         // Handle microphone button if it exists (charisma.html)
         if (micButton) {
             if (data.activated) {
                 micButton.classList.add('active');
+                console.log('[CLIENT] Mic button set to active');
             } else {
                 micButton.classList.remove('active');
+                console.log('[CLIENT] Mic button set to inactive');
             }
         }
         
@@ -544,31 +552,74 @@ socket.on('mic_activated', (data) => {
                 voiceBubble.classList.remove('mic-off', 'launching');
                 voiceBubble.classList.add('mic-on');
                 voiceBubble.innerHTML = '<span id="role-icon">🎤</span>';
+                console.log('[CLIENT] Voice bubble set to mic-on');
             } else {
                 voiceBubble.classList.remove('mic-on', 'launching');
                 voiceBubble.classList.add('mic-off');
                 voiceBubble.innerHTML = '<span id="role-icon">🤖</span>';
+                console.log('[CLIENT] Voice bubble set to mic-off');
             }
         }
         
-        // Handle speech recognition
+        // Handle speech recognition with enhanced debugging and retry logic
         if (data.activated) {
-            // Auto-start speech recognition when mic is activated
-            if (recognition && !isListening) {
-                console.log('[CLIENT] Auto-starting speech recognition...');
-                try {
-                    recognition.start();
-                } catch (error) {
-                    console.log('[CLIENT] Speech recognition already running or error:', error);
+            if (recognition) {
+                if (!isListening) {
+                    console.log('[CLIENT] Starting speech recognition (auto-activated)...');
+                    
+                    // Retry logic for speech recognition
+                    let startAttempts = 0;
+                    const maxStartAttempts = 3;
+                    
+                    const attemptStart = () => {
+                        try {
+                            recognition.start();
+                            console.log('[CLIENT] Speech recognition start command sent');
+                            
+                            // Show a brief notification that mic is ready
+                            showNotification('🎤 Microphone activated - You can speak now!', 'success');
+                        } catch (error) {
+                            startAttempts++;
+                            console.log(`[CLIENT] Speech recognition start failed (attempt ${startAttempts}/${maxStartAttempts}):`, error);
+                            
+                            if (error.name === 'InvalidStateError' && startAttempts < maxStartAttempts) {
+                                console.log('[CLIENT] Retrying speech recognition start in 200ms...');
+                                setTimeout(attemptStart, 200);
+                            } else if (startAttempts < maxStartAttempts) {
+                                console.log('[CLIENT] Retrying speech recognition start in 500ms...');
+                                setTimeout(attemptStart, 500);
+                            } else {
+                                console.error('[CLIENT] Failed to start speech recognition after', maxStartAttempts, 'attempts');
+                                showNotification('Unable to start microphone. Please click the microphone button manually.', 'warning');
+                            }
+                        }
+                    };
+                    
+                    attemptStart();
+                } else {
+                    console.log('[CLIENT] Speech recognition already running');
+                    showNotification('🎤 Microphone already active - You can speak!', 'info');
                 }
+            } else {
+                console.error('[CLIENT] Speech recognition not available - cannot start');
+                showNotification('Speech recognition not available. Please type your message instead.', 'error');
             }
         } else {
             // Stop speech recognition when mic is deactivated
             if (recognition && isListening) {
-                console.log('[CLIENT] Auto-stopping speech recognition...');
-                recognition.stop();
+                console.log('[CLIENT] Stopping speech recognition (auto-deactivated)...');
+                try {
+                    recognition.stop();
+                    console.log('[CLIENT] Speech recognition stop command sent');
+                } catch (error) {
+                    console.log('[CLIENT] Error stopping speech recognition:', error);
+                }
+            } else {
+                console.log('[CLIENT] Speech recognition not running or not available');
             }
         }
+    } else {
+        console.log('[CLIENT] Mic activation filtered out - session ID mismatch');
     }
 });
 
@@ -583,17 +634,40 @@ socket.on('tts_failed', function(data) {
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
+    
+    // Define colors for different notification types
+    let backgroundColor;
+    switch (type) {
+        case 'success':
+            backgroundColor = '#4caf50'; // Green
+            break;
+        case 'warning':
+            backgroundColor = '#ff9800'; // Orange
+            break;
+        case 'error':
+            backgroundColor = '#f44336'; // Red
+            break;
+        case 'info':
+        default:
+            backgroundColor = '#2196f3'; // Blue
+            break;
+    }
+    
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${type === 'warning' ? '#ff9800' : '#2196f3'};
+        background: ${backgroundColor};
         color: white;
         padding: 10px 15px;
         border-radius: 5px;
         z-index: 1000;
         opacity: 0;
         transition: opacity 0.3s ease;
+        max-width: 300px;
+        word-wrap: break-word;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     `;
     notification.textContent = message;
     
@@ -602,11 +676,16 @@ function showNotification(message, type = 'info') {
     // Fade in
     setTimeout(() => notification.style.opacity = '1', 10);
     
-    // Auto remove after 3 seconds
+    // Auto remove after different durations based on type
+    const duration = type === 'success' ? 2000 : (type === 'error' ? 5000 : 3000);
     setTimeout(() => {
         notification.style.opacity = '0';
-        setTimeout(() => document.body.removeChild(notification), 300);
-    }, 3000);
+        setTimeout(() => {
+            if (notification.parentNode) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
 }
 
 // Add end session functionality

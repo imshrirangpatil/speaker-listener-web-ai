@@ -18,12 +18,22 @@ socket.on('disconnect', (reason) => {
     console.log('[CLIENT] Socket disconnected:', reason);
     if (reason === 'io server disconnect') {
         // Server initiated disconnect, try reconnecting
-        socket.connect();
+        setTimeout(() => socket.connect(), 1000);
     }
 });
 
 socket.on('connect_error', (error) => {
     console.log('[CLIENT] Connection error:', error);
+    // Don't automatically retry on connection errors to prevent spam
+});
+
+// Handle reconnection attempts with backoff
+socket.on('reconnect_attempt', (attemptNumber) => {
+    console.log('[CLIENT] Reconnection attempt:', attemptNumber);
+});
+
+socket.on('reconnect', (attemptNumber) => {
+    console.log('[CLIENT] Reconnected after', attemptNumber, 'attempts');
 });
 
 // Handle session assignment
@@ -35,10 +45,8 @@ socket.on('session_assigned', (data) => {
 // Handle session ended
 socket.on('session_ended', (data) => {
     console.log('[CLIENT] Session ended:', data.session_id);
-    showNotification('Session ended. Refreshing page...', 'info');
-    setTimeout(() => {
-        window.location.reload();
-    }, 2000);
+    alert('Session ended. Returning to setup...');
+    resetToSetup();
 });
 
 // DOM elements
@@ -358,8 +366,7 @@ function initSpeechRecognition() {
                 // Send to server with session ID
                 socket.emit('user_speech', { text: transcript, session_id: sessionId });
                 
-                // Add to chat
-                addMessage(transcript, 'user');
+                // DON'T add to chat here - server will emit new_message which adds it
                 
                 // Update input field
                 if (messageInput) messageInput.value = transcript;
@@ -380,7 +387,11 @@ function initSpeechRecognition() {
             if (event.error === 'no-speech' || event.error === 'audio-capture') {
                 console.log('[CLIENT] Auto-restarting speech recognition due to:', event.error);
                 setTimeout(() => {
-                    if (micButton && micButton.classList.contains('active')) {
+                    const voiceBubble = document.getElementById('voice-bubble');
+                    const shouldRestart = (micButton && micButton.classList.contains('active')) || 
+                                         (voiceBubble && voiceBubble.classList.contains('mic-on'));
+                    
+                    if (shouldRestart) {
                         try {
                             recognition.start();
                         } catch (error) {
@@ -397,7 +408,11 @@ function initSpeechRecognition() {
             if (micButton) micButton.classList.remove('listening');
             
             // Auto-restart if microphone is still supposed to be active
-            if (micButton && micButton.classList.contains('active')) {
+            const voiceBubble = document.getElementById('voice-bubble');
+            const shouldRestart = (micButton && micButton.classList.contains('active')) || 
+                                 (voiceBubble && voiceBubble.classList.contains('mic-on'));
+            
+            if (shouldRestart) {
                 console.log('[CLIENT] Mic still active, restarting speech recognition...');
                 setTimeout(() => {
                     try {
@@ -443,10 +458,20 @@ function toggleMicrophone() {
 }
 
 // Switch to session UI
-function switchToSession() {
+function switchToSession(newSessionId) {
+    if (newSessionId) {
+        sessionId = newSessionId;
+        console.log('[CLIENT] Session started, reconnecting socket with session ID:', sessionId);
+        
+        // Disconnect and reconnect with correct session ID
+        socket.disconnect();
+        socket.io.opts.query = { session_id: sessionId };
+        socket.connect();
+    }
+    
     if (setupUI) setupUI.style.display = 'none';
     if (sessionUI) sessionUI.style.display = 'block';
-    addMessage('Charisma Bot is now launching...', 'system');
+    // Removed launching message - handled by bot conversation flow
 }
 
 // Socket.IO event handlers - only process messages for current session
@@ -458,6 +483,16 @@ socket.on('new_message', (data) => {
     // Only process messages for current session or without session ID (for system messages)
     if (!data.session_id || data.session_id === sessionId) {
         addMessage(data.text, data.sender);
+        
+        // If it's a bot message, show the bot is speaking (mic off)
+        if (data.sender === 'bot') {
+            const voiceBubble = document.getElementById('voice-bubble');
+            if (voiceBubble) {
+                voiceBubble.classList.remove('mic-on', 'launching');
+                voiceBubble.classList.add('mic-off');
+                voiceBubble.innerHTML = '<span id="role-icon">🤖</span>';
+            }
+        }
     } else {
         console.log('[CLIENT] Message filtered out - session ID mismatch');
     }
@@ -493,25 +528,45 @@ socket.on('mic_activated', (data) => {
     console.log('[CLIENT] Mic activation:', data.activated);
     // Only process for current session or without session ID
     if (!data.session_id || data.session_id === sessionId) {
+        // Handle microphone button if it exists (charisma.html)
         if (micButton) {
             if (data.activated) {
                 micButton.classList.add('active');
-                // Auto-start speech recognition when mic is activated
-                if (recognition && !isListening) {
-                    console.log('[CLIENT] Auto-starting speech recognition...');
-                    try {
-                        recognition.start();
-                    } catch (error) {
-                        console.log('[CLIENT] Speech recognition already running or error:', error);
-                    }
-                }
             } else {
                 micButton.classList.remove('active');
-                // Stop speech recognition when mic is deactivated
-                if (recognition && isListening) {
-                    console.log('[CLIENT] Auto-stopping speech recognition...');
-                    recognition.stop();
+            }
+        }
+        
+        // Handle voice bubble if it exists (index.html)
+        const voiceBubble = document.getElementById('voice-bubble');
+        if (voiceBubble) {
+            if (data.activated) {
+                voiceBubble.classList.remove('mic-off', 'launching');
+                voiceBubble.classList.add('mic-on');
+                voiceBubble.innerHTML = '<span id="role-icon">🎤</span>';
+            } else {
+                voiceBubble.classList.remove('mic-on', 'launching');
+                voiceBubble.classList.add('mic-off');
+                voiceBubble.innerHTML = '<span id="role-icon">🤖</span>';
+            }
+        }
+        
+        // Handle speech recognition
+        if (data.activated) {
+            // Auto-start speech recognition when mic is activated
+            if (recognition && !isListening) {
+                console.log('[CLIENT] Auto-starting speech recognition...');
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.log('[CLIENT] Speech recognition already running or error:', error);
                 }
+            }
+        } else {
+            // Stop speech recognition when mic is deactivated
+            if (recognition && isListening) {
+                console.log('[CLIENT] Auto-stopping speech recognition...');
+                recognition.stop();
             }
         }
     }
@@ -558,14 +613,25 @@ function showNotification(message, type = 'info') {
 function endSession() {
     if (sessionId) {
         socket.emit('end_session');
-        // Reset UI
-        if (setupUI) setupUI.style.display = 'block';
-        if (sessionUI) sessionUI.style.display = 'none';
-        if (startButton) startButton.disabled = false;
-        if (chatMessages) chatMessages.innerHTML = '';
-        sessionId = null;
-        addMessage('Welcome to Charisma Bot! Select a character and click "Start Session" to begin.', 'system');
+        resetToSetup();
     }
+}
+
+function resetToSetup() {
+    // Reset UI
+    if (setupUI) setupUI.style.display = 'block';
+    if (sessionUI) sessionUI.style.display = 'none';
+    if (startButton) startButton.disabled = false;
+    if (chatMessages) chatMessages.innerHTML = '';
+    
+    // Reset session
+    sessionId = null;
+    
+    // Reset character selection if element exists
+    const characterSelect = document.getElementById('characterSelect');
+    if (characterSelect) characterSelect.value = '';
+    
+    // Removed welcome message from resetToSetup
 }
 
 // Event listeners
@@ -573,12 +639,14 @@ if (micButton) {
     micButton.addEventListener('click', toggleMicrophone);
 }
 
+// Add voice bubble click handler for index.html (moved to main DOMContentLoaded)
+
 if (sendButton) {
     sendButton.addEventListener('click', () => {
         const text = messageInput ? messageInput.value.trim() : '';
         if (text && sessionId) {
             socket.emit('user_speech', { text: text, session_id: sessionId });
-            addMessage(text, 'user');
+            // DON'T add to chat here - server will emit new_message which adds it
             if (messageInput) messageInput.value = '';
         }
     });
@@ -655,9 +723,30 @@ document.addEventListener('DOMContentLoaded', () => {
     initAudioContext();
     initSpeechRecognition();
     
-    // Show welcome message
-    if (chatMessages) {
-        addMessage('Welcome to Charisma Bot! Select a character and click "Start Session" to begin.', 'system');
+    // Removed welcome message from DOMContentLoaded
+    
+    // Add voice bubble click handler for index.html
+    const voiceBubble = document.getElementById('voice-bubble');
+    if (voiceBubble) {
+        voiceBubble.addEventListener('click', () => {
+            console.log('[CLIENT] Voice bubble clicked');
+            if (recognition) {
+                if (isListening) {
+                    console.log('[CLIENT] Stopping speech recognition (manual)');
+                    recognition.stop();
+                } else {
+                    console.log('[CLIENT] Starting speech recognition (manual)');
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.log('[CLIENT] Speech recognition error:', error);
+                    }
+                }
+            }
+        });
+        
+        // Initial state
+        voiceBubble.innerHTML = '<span id="role-icon">👋</span>';
     }
 });
 

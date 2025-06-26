@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   
   <!-- Safari and iOS audio support -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
   
@@ -98,7 +98,7 @@
       position: relative;
     }
 
-    #chat-box {
+    #chat-messages {
       padding: 20px;
       padding-bottom: 55px;
       height: max-content;
@@ -223,7 +223,7 @@
         <button onclick="downloadChat()" class="btn" style="border-bottom-right-radius: 12px;">Download Chat</button>
       </div>
       <div class="fade-overlay"></div>
-      <div id="chat-box"></div>
+      <div id="chat-messages"></div>
     </div>
   </div>
 </div>
@@ -240,25 +240,23 @@
 
 <audio id="bot-audio" hidden></audio>
 
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
 <script>
-  const socket = io();
-  const chatBox = document.getElementById('chat-box');
+  // Remove duplicate socket initialization - handled in app.js
+  // const socket = io(); 
+  
+  const chatBox = document.getElementById('chat-messages');
   const chatLog = [];
   var chatDownloaded = false;
-  let sessionId = null;
+  
+  // Session ID handling moved to app.js
+  // let sessionId = null;
 
-  // Handle session assignment
-  socket.on('session_assigned', (data) => {
-    sessionId = data.session_id;
-    console.log('[CLIENT] Session assigned:', sessionId);
-  });
-
-  // Handle session ended
-  socket.on('session_ended', (data) => {
-    console.log('[CLIENT] Session ended:', data.session_id);
-    alert('Session ended. Returning to setup...');
-    resetToSetup();
-  });
+  // Remove duplicate session handlers - handled in app.js
+  // socket.on('session_assigned', (data) => { ... });
+  // socket.on('session_ended', (data) => { ... });
 
   function startSession() {
     const selected = document.getElementById('characterSelect').value;
@@ -275,19 +273,15 @@
     .then(res => res.json())
     .then(data => {
       if (data.status === "success") {
-        sessionId = data.session_id;
-        console.log('[CLIENT] Session started, reconnecting socket with session ID:', sessionId);
-        
-        // Disconnect and reconnect with correct session ID
-        socket.disconnect();
-        socket.io.opts.query = { session_id: sessionId };
-        socket.connect();
+        // Session handling moved to app.js - call function there
+        if (typeof switchToSession === 'function') {
+          switchToSession(data.session_id);
+        }
         
         document.getElementById("setup-ui").style.display = "none";
         const initially_hidden = document.getElementById("initially-hidden");
         initially_hidden.classList.remove("hidden");
         chatBox.style.display = "flex";
-        addMessage("Charisma Bot is now launching...", "bot");
       } else {
         alert("❌ " + data.message);
       }
@@ -299,268 +293,68 @@
   }
 
   function endSession() {
-    if (sessionId) {
-      socket.emit('end_session');
-      resetToSetup();
+    // Call endSession function from app.js
+    if (typeof endSession !== 'undefined') {
+      window.endSession();
     }
-  }
-
-  function resetToSetup() {
-    // Reset UI
-    document.getElementById("setup-ui").style.display = "block";
-    const initially_hidden = document.getElementById("initially-hidden");
-    initially_hidden.classList.add("hidden");
-    
-    // Clear chat
-    chatBox.innerHTML = '';
-    chatLog.length = 0;
-    
-    // Reset session
-    sessionId = null;
-    chatDownloaded = false;
-    
-    // Reset voice bubble
-    const bubble = document.getElementById("voice-bubble");
-    bubble.className = "chat-bubble launching";
-    
-    // Reset character selection
-    document.getElementById('characterSelect').value = '';
   }
 
   function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  function addMessage(text, sender) {
-    const message = document.createElement("div");
-    message.className = `chat-message ${sender}`;
-    message.textContent = capitalize(text);
-    chatBox.appendChild(message);
-    chatBox.scrollTop = chatBox.scrollHeight;
-    const now = new Date();
-    day = now.getDate().toString().padStart(2, '0');
-    month = (now.getMonth() + 1).toString().padStart(2, '0');
-    year = now.getFullYear();
-    hour = now.getHours().toString().padStart(2, '0');
-    minute = now.getMinutes().toString().padStart(2, '0');
-    second = now.getSeconds().toString().padStart(2, '0');
-    chatLog.push(`${day}-${month}-${year} ${hour}:${minute}:${second} ${sender.toUpperCase()}: ${text}`);
-  }
-
-  function updateMicStatus(activated) {
-    const bubble = document.getElementById("voice-bubble");
-    const icon = document.getElementById("role-icon");
-    
-    if (activated) {
-      bubble.classList.remove("launching");
-      bubble.classList.remove("mic-off");
-      bubble.classList.add("mic-on");
-      icon.textContent = "🎤";
-      isListening = true;
-      
-    } else {
-      bubble.classList.remove("launching");
-      bubble.classList.remove("mic-on");
-      bubble.classList.add("mic-off");
-      icon.textContent = "🔊";
-      isListening = false;
-    }
-  }
-
-  // Add click-to-speak functionality
-  function toggleSpeechRecognition() {
-    if (!isListening) {
-      console.log('[CLIENT] Bot is not listening, ignoring click');
-      return;
-    }
-    
-    if (!recognition) {
-      console.error('[CLIENT] Speech recognition not initialized');
-      alert('Speech recognition not available. Please use a supported browser (Chrome/Edge).');
-      return;
-    }
-    
-    if (isRecording) {
-      console.log('[CLIENT] Stopping manual voice recognition');
-      recognition.stop();
-    } else {
-      console.log('[CLIENT] Starting manual voice recognition');
-      try {
-        recognition.start();
-      } catch (error) {
-        console.error('[CLIENT] Failed to start voice recognition:', error);
-        alert('Unable to start voice recognition. Please try clicking again.');
-      }
-    }
-  }
-
   function downloadChat() {
     if (!confirm("Are you sure you want to download the chat?"))
       return;
+
+    // Get all chat messages from the UI
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) {
+      alert('No chat messages found.');
+      return;
+    }
+
+    const messages = chatMessages.querySelectorAll('.chat-message');
+    const chatLog = [];
+    
+    messages.forEach(message => {
+      const sender = message.classList.contains('user') ? 'User' : 
+                    message.classList.contains('bot') ? 'Bot' : 'System';
+      const text = message.textContent.trim();
+      const timestamp = new Date().toLocaleString();
+      chatLog.push(`[${timestamp}] ${sender}: ${text}`);
+    });
+
+    if (chatLog.length === 0) {
+      alert('No chat messages to download.');
+      return;
+    }
 
     const blob = new Blob([chatLog.join("\n")], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     const now = new Date();
-    day = now.getDate().toString().padStart(2, '0');
-    month = (now.getMonth() + 1).toString().padStart(2, '0');
-    year = now.getFullYear();
-    link.download = `charisma_chat_log_${day}_${month}_${year}.txt`;
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    link.download = `charisma_chat_log_${day}_${month}_${year}_${hours}${minutes}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    chatDownloaded = true;
+    
+    alert('Chat downloaded successfully!');
   }
 
   function reportBug() {
     window.open('https://docs.google.com/forms/d/e/1FAIpQLSdf-rvSeMAqlF_iRflrT5DP-g9Q7CJEmnkNTIIr8ouiZ2GOLw/viewform?usp=dialog', '_blank');
   }
 
-  // Voice recognition for user input
-  let recognition;
-  let isRecording = false;
-  let isListening = false;
-
-  function initVoiceRecognition() {
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new webkitSpeechRecognition();
-      console.log("Using webkitSpeechRecognition");
-    } else if ('SpeechRecognition' in window) {
-      recognition = new SpeechRecognition();
-      console.log("Using SpeechRecognition");
-    } else {
-      console.error("Speech recognition not supported in this browser");
-      alert("Speech recognition is not supported in your browser. Please use Chrome or Edge for the best experience.");
-      return;
-    }
-
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function() {
-      console.log("Speech recognition started");
-      isRecording = true;
-    };
-
-    recognition.onresult = function(event) {
-      const transcript = event.results[0][0].transcript;
-      console.log("User said:", transcript);
-      
-      if (sessionId) {
-        // Send to server with session ID
-        socket.emit("user_speech", { text: transcript, session_id: sessionId });
-      }
-    };
-
-    recognition.onerror = function(event) {
-      console.error("Speech recognition error:", event.error);
-      isRecording = false;
-    };
-
-    recognition.onend = function() {
-      console.log("Speech recognition ended");
-      isRecording = false;
-    };
-  }
-
-  // Handle page unload
+  // Page unload handler
   window.addEventListener('beforeunload', () => {
-    if (sessionId) {
-      socket.emit('end_session');
-    }
-  });
-
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    initVoiceRecognition();
-    
-    // Add click event to voice bubble for manual speech recognition
-    const voiceBubble = document.getElementById('voice-bubble');
-    if (voiceBubble) {
-      voiceBubble.addEventListener('click', toggleSpeechRecognition);
-      voiceBubble.style.cursor = 'pointer';
-    }
-  });
-
-  // Handle messages only for current session
-  socket.on("new_message", (data) => {
-    if (data && data.text && data.sender) {
-      // Only process messages for current session or without session ID
-      if (!data.session_id || data.session_id === sessionId) {
-        addMessage(data.text, data.sender);
-      }
-    }
-  });
-
-  // Enhanced audio playback with iOS support
-  socket.on("play_audio_base64", ({ audio_base64, mime, session_id }) => {
-    // Only process audio for current session
-    if (!session_id || session_id === sessionId) {
-      try {
-        // Try modern approach first
-        const audioBlob = new Blob([Uint8Array.from(atob(audio_base64), c => c.charCodeAt(0))], { type: mime });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        
-        audio.onended = () => {
-          socket.emit("bot_audio_ended", { session_id: sessionId });
-          URL.revokeObjectURL(audioUrl); // Clean up
-        };
-        
-        audio.onerror = (error) => {
-          console.error('[CLIENT] Audio playback error:', error);
-          // Fallback to data URL for iOS
-          const dataUrl = `data:${mime};base64,${audio_base64}`;
-          const fallbackAudio = new Audio(dataUrl);
-          fallbackAudio.onended = () => {
-            socket.emit("bot_audio_ended", { session_id: sessionId });
-          };
-          fallbackAudio.play().catch(err => {
-            console.error('[CLIENT] Fallback audio also failed:', err);
-            socket.emit("bot_audio_ended", { session_id: sessionId });
-          });
-        };
-        
-        // iOS requires user interaction for audio playback
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error('[CLIENT] Audio autoplay blocked:', error);
-            // Try fallback approach
-            audio.load();
-            audio.play();
-          });
-        }
-      } catch (error) {
-        console.error('[CLIENT] Audio processing error:', error);
-        socket.emit("bot_audio_ended", { session_id: sessionId });
-      }
-    }
-  });
-
-  // Handle mic activation only for current session
-  socket.on("mic_activated", (data) => {
-    if (!data.session_id || data.session_id === sessionId) {
-      updateMicStatus(data.activated);
-      
-      // Automatically start/stop voice recognition when bot activates/deactivates mic
-      if (data.activated && !isRecording && recognition) {
-        console.log('[CLIENT] Starting voice recognition automatically');
-        try {
-          recognition.start();
-        } catch (error) {
-          console.error('[CLIENT] Failed to start voice recognition:', error);
-        }
-      } else if (!data.activated && isRecording && recognition) {
-        console.log('[CLIENT] Stopping voice recognition automatically');
-        try {
-          recognition.stop();
-        } catch (error) {
-          console.error('[CLIENT] Failed to stop voice recognition:', error);
-        }
-      }
+    if (typeof endSession === 'function') {
+      endSession();
     }
   });
 </script>

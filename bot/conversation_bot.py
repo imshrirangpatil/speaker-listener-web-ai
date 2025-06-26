@@ -157,10 +157,8 @@ class ConversationBot:
 
     def send_friendly_introduction(self):
         if not self.introduced:
-            self.send_and_wait("Hi, I'm Charisma Bot, your conversation partner. Let's have a friendly chat today!")
+            self.send_and_wait("Hi, I'm Charisma Bot. Today we'll practice the Speaker-Listener Technique to understand each other better.")
             self.add_natural_pause("introduction")
-            self.send_and_wait("Today, we'll practice the Speaker-Listener Technique. We'll take turns sharing and listening to understand each other better.")
-            self.add_natural_pause("normal")
             self.introduced = True
 
     def get_confirmation_prompt(self):
@@ -188,9 +186,8 @@ class ConversationBot:
         return random.choice(prompts)
 
     def paraphrase_for_listener(self, user_input):
-        # If user input is a paraphrase/confirmation, just confirm
-        if self.is_user_paraphrase(user_input):
-            return "Yes, that's right. Thank you!"
+        # ALWAYS paraphrase - never shortcut with "Yes, that's right"
+        # This is essential for the Speaker-Listener Technique
         
         is_question = user_input.strip().endswith('?')
         paraphrased = paraphrase(user_input)
@@ -203,6 +200,10 @@ class ConversationBot:
             # Paraphrase function already provided a complete response
             # Remove any quotes that might be causing duplication
             paraphrased = paraphrased.replace('"', '').replace('"', '').replace('"', '')
+            # Clean up any double template phrases like "It sounds like: It sounds like"
+            paraphrased = re.sub(r'(It sounds like[:\s]*){2,}', 'It sounds like: ', paraphrased, flags=re.IGNORECASE)
+            paraphrased = re.sub(r'(What I hear[:\s]*){2,}', 'What I hear: ', paraphrased, flags=re.IGNORECASE)
+            paraphrased = re.sub(r'(If I understand[:\s]*){2,}', 'If I understand: ', paraphrased, flags=re.IGNORECASE)
             return paraphrased
         
         # If the paraphrased text contains quotes, it might be a quoted response that needs unwrapping
@@ -267,231 +268,228 @@ class ConversationBot:
     def listener_mode(self):
         try:
             self.emit_mic_activated(False)
-            # Combine listener greeting messages
-            self.send_and_wait(f"I'm listening. {self.get_friendly_phrase()}")
+            # Brief combined introduction (reduce from 2 messages to 1)
             if not self.role_explained:
-                self.send_and_wait("As the listener, your job is to repeat what you heard, so I feel understood.")
+                self.send_and_wait("Let's switch roles now! I'm listening. Take your time.")
+                self.role_explained = True
+            else:
+                self.send_and_wait("I'm listening.")
+                
             last_paraphrase = None
-            while True:
+            max_listener_attempts = 3  # Prevent infinite loops
+            listener_attempt = 0
+            
+            while listener_attempt < max_listener_attempts:
+                listener_attempt += 1
+                print(f"[BOT] Listener attempt {listener_attempt}/{max_listener_attempts}")
+                
                 self.emit_mic_activated(True)
                 user_input = self.listen()
                 self.emit_mic_activated(False)
                 if not user_input or len(user_input.strip()) < 5:
-                    self.send_and_wait(self.get_clarify_prompt())
-                    self.emit_mic_activated(True)
+                    if listener_attempt >= max_listener_attempts:
+                        self.send_and_wait("Let's continue with our conversation.")
+                        self.listener_turns_completed += 1
+                        break
+                    self.send_and_wait("Could you share more?")
                     continue
                 if self.is_goodbye(user_input):
-                    self.send_and_wait("Goodbye! It was nice talking with you.")
+                    self.send_and_wait("Goodbye! Thanks for practicing with me.")
                     return False
                 self.current_emotion = detect_emotion(user_input)
                 # Handle "So you said?" or similar
                 if user_input.strip().lower() in ["so you said?", "so you said", "what did you say?", "what did you say"] and last_paraphrase:
-                    self.send_and_wait(f"Here's what I said: {last_paraphrase}")
-                    self.emit_mic_activated(True)
+                    self.send_and_wait(f"{last_paraphrase}")
                     continue
-                paraphrased = self.paraphrase_for_listener(user_input)
-                last_paraphrase = paraphrased
-                self.send_and_wait(paraphrased)
-                self.add_natural_pause("quick")
-                self.send_and_wait(self.get_confirmation_prompt())
+                
+                # ALWAYS paraphrase user input - this is the core of listener mode
+                try:
+                    paraphrased = self.paraphrase_for_listener(user_input)
+                    print(f"[BOT] Paraphrased: {paraphrased}")
+                    last_paraphrase = paraphrased
+                    self.send_and_wait(paraphrased)
+                except Exception as e:
+                    print(f"[BOT] Error in paraphrasing: {e}")
+                    # NEVER use verbatim repetition - create a proper paraphrase fallback
+                    paraphrased = self.create_fallback_paraphrase(user_input)
+                    last_paraphrase = paraphrased
+                    self.send_and_wait(paraphrased)
+                # Brief confirmation prompt
+                self.send_and_wait("Did I get that right?")
+                
+                print(f"[BOT] Waiting for confirmation from user")
                 self.emit_mic_activated(True)
                 confirmation = self.listen()
                 self.emit_mic_activated(False)
-                conf_result = self.is_confirmation(confirmation)
-                if conf_result:
-                    self.send_and_wait("Yes, that's right. Thank you!")
+                print(f"[BOT] Received confirmation: {confirmation}")
+                # Check for feedback FIRST, before checking confirmation
+                if confirmation and self.is_feedback_about_paraphrasing(confirmation):
+                    # User is giving feedback about paraphrasing quality
+                    print(f"[BOT] User gave paraphrasing feedback: {confirmation}")
+                    self.send_and_wait("You're absolutely right. Let me paraphrase that better:")
+                    # Try to generate a better paraphrase
+                    better_paraphrase = self.improve_paraphrase(user_input, confirmation)
+                    self.send_and_wait(better_paraphrase)
+                    self.send_and_wait("Does that capture it better?")
+                    
+                    self.emit_mic_activated(True)
+                    final_confirmation = self.listen()
+                    self.emit_mic_activated(False)
+                    
+                    if final_confirmation and self.is_confirmation(final_confirmation):
+                        self.send_and_wait("Great! Thank you for the feedback.")
+                    else:
+                        self.send_and_wait("Thank you for your patience.")
+                    
                     self.listener_turns_completed += 1
                     break
-                elif conf_result is None:  # ambiguous response
-                    self.send_and_wait("I heard both yes and no. Could you clarify if I understood you correctly?")
-                    self.emit_mic_activated(True)
-                    retry_confirmation = self.listen()
-                    self.emit_mic_activated(False)
-                    if retry_confirmation and self.is_confirmation(retry_confirmation):
-                        self.send_and_wait("Thank you for clarifying! Let's continue.")
+                elif self.is_confirmation(confirmation):
+                    self.send_and_wait("Thank you!")
+                    self.listener_turns_completed += 1
+                    break
+                elif confirmation and len(confirmation.strip()) > 2:
+                    # User gave a substantive response but it wasn't a clear confirmation
+                    print(f"[BOT] User gave non-confirmation response: {confirmation}")
+                    if listener_attempt >= max_listener_attempts:
+                        self.send_and_wait("Let's continue with our conversation.")
                         self.listener_turns_completed += 1
                         break
-                    else:
-                        self.send_and_wait("Let me try to understand better.")
-                        self.emit_mic_activated(True)
-                        retry_input = self.listen()
-                        self.emit_mic_activated(False)
-                        if retry_input and len(retry_input.strip()) >= 5:
-                            paraphrased = self.paraphrase_for_listener(retry_input)
-                            last_paraphrase = paraphrased
-                            self.send_and_wait(paraphrased)
-                            self.send_and_wait(self.get_confirmation_prompt())
-                            self.emit_mic_activated(True)
-                            retry_confirmation = self.listen()
-                            self.emit_mic_activated(False)
-                            if retry_confirmation and self.is_confirmation(retry_confirmation):
-                                self.send_and_wait("Thank you for clarifying! Let's continue.")
-                                self.listener_turns_completed += 1
-                                break  # Exit the loop and proceed to problem-solving
-                            else:
-                                self.send_and_wait("Let's move on for now.")
-                                self.listener_turns_completed += 1
-                                break  # Exit the loop and proceed to problem-solving
-                        else:
-                            self.send_and_wait("Let's move on for now.")
-                            self.listener_turns_completed += 1
-                            break  # Exit the loop and proceed to problem-solving
+                    self.send_and_wait("Let me try again to understand what you said.")
+                    continue  # Go back to the beginning of the loop
                 else:
-                    # If user says "No" or gives unclear feedback, ask for clarification
-                    self.send_and_wait("I want to make sure I understand you correctly. Could you please say it again in your own words?")
+                    # Brief retry
+                    self.send_and_wait("Could you say it again?")
                     self.emit_mic_activated(True)
                     retry_input = self.listen()
                     self.emit_mic_activated(False)
                     if retry_input and len(retry_input.strip()) >= 5:
-                        paraphrased = self.paraphrase_for_listener(retry_input)
-                        last_paraphrase = paraphrased
-                        self.send_and_wait(paraphrased)
-                        self.send_and_wait(self.get_confirmation_prompt())
+                        try:
+                            paraphrased = self.paraphrase_for_listener(retry_input)
+                            print(f"[BOT] Retry paraphrased: {paraphrased}")
+                            last_paraphrase = paraphrased
+                            self.send_and_wait(paraphrased)
+                        except Exception as e:
+                            print(f"[BOT] Error in retry paraphrasing: {e}")
+                            # NEVER use verbatim repetition - create a proper paraphrase fallback
+                            paraphrased = self.create_fallback_paraphrase(retry_input)
+                            last_paraphrase = paraphrased
+                            self.send_and_wait(paraphrased)
+                        self.send_and_wait("Did I get that right?")
                         self.emit_mic_activated(True)
                         retry_confirmation = self.listen()
                         self.emit_mic_activated(False)
                         if retry_confirmation and self.is_confirmation(retry_confirmation):
-                            self.send_and_wait("Thank you for clarifying! Let's continue.")
+                            self.send_and_wait("Thank you!")
                             self.listener_turns_completed += 1
-                            break  # Exit the loop and proceed to problem-solving
+                            break
                         else:
-                            self.send_and_wait("Let's move on for now.")
+                            self.send_and_wait("Let's continue.")
                             self.listener_turns_completed += 1
-                            break  # Exit the loop and proceed to problem-solving
+                            break
                     else:
-                        self.send_and_wait("Let's move on for now.")
+                        self.send_and_wait("Let's continue.")
                         self.listener_turns_completed += 1
-                        break  # Exit the loop and proceed to problem-solving
-            # Removed intermediate save - will save at conversation end
-            if self.speaker_turns_completed >= 1 and self.listener_turns_completed >= 1:
-                return self.problem_solving_phase()
+                        break
+            
+            # Safety check: if we exit the loop without completing, force completion
+            if listener_attempt >= max_listener_attempts and self.listener_turns_completed == 0:
+                print(f"[BOT] Listener mode timed out, forcing completion")
+                self.send_and_wait("Thank you for sharing.")
+                self.listener_turns_completed += 1
+            
+            # FIXED: Require minimum 2-3 complete rounds before ending
+            min_rounds_each_role = 2
+            if (self.speaker_turns_completed >= min_rounds_each_role and 
+                self.listener_turns_completed >= min_rounds_each_role):
+                # End with understanding validation, NOT problem-solving
+                self.send_and_wait("Great practice! We both had a chance to feel heard and understood.")
+                self.save_conversation()
+                return False
             else:
                 self.switch_roles()
                 return True
         except Exception as e:
-            # Removed intermediate save - will save at conversation end
-            return False
+            print(f"[BOT] Exception in listener_mode: {e}")
+            import traceback
+            print(f"[BOT] Traceback: {traceback.format_exc()}")
+            # Try to continue gracefully
+            try:
+                self.send_and_wait("I apologize, let's continue our conversation.")
+                self.listener_turns_completed += 1
+                self.switch_roles()
+                return True
+            except:
+                return False
 
     def speaker_mode(self):
         try:
             print("[BOT] Entering speaker mode")
             self.emit_mic_activated(False)
             if not self.role_explained:
-                self.send_and_wait("As the speaker, I'll share my thoughts. Your job is to listen and repeat what you heard.")
+                self.send_and_wait("I'll start as speaker. You listen and repeat what you heard.")
                 self.role_explained = True
+            
             i_statement = self.generate_i_statement()
             # Ensure I-statement is complete (ends with a period)
             if not i_statement.strip().endswith(('.', '!', '?')):
                 i_statement = i_statement.strip() + '.'
-            # Send the whole I-statement as one message
-            self.send_and_wait(i_statement.strip())
+            
+            # Store the I-statement for later comparison
+            self.current_i_statement = i_statement.strip()
+            
+            # Send the I-statement with quotes to make it clear
+            self.send_and_wait(f'"{self.current_i_statement}"')
+            
+            # Brief prompt - combine with short pause
             self.add_natural_pause("thinking")
-            self.send_and_wait("Can you tell me what you heard?")
-            # Activate mic immediately after prompt - no wait_for_audio_to_finish() here
+            self.send_and_wait("What did you hear?")
+            
             self.emit_mic_activated(True)
             user_response = self.listen()
             self.emit_mic_activated(False)
             
-            # Check if user response is too short, unclear, or completely wrong
+            # Simple retry logic - only one attempt
             if not user_response or len(user_response.strip()) < 5:
-                self.send_and_wait("I didn't hear you clearly. Could you please repeat what I said?")
+                self.send_and_wait("Could you repeat what I said?")
                 self.emit_mic_activated(True)
                 user_response = self.listen()
                 self.emit_mic_activated(False)
                 if not user_response or len(user_response.strip()) < 5:
-                    self.send_and_wait("Let's try again. I said: " + i_statement.strip())
-                    self.emit_mic_activated(True)
-                    user_response = self.listen()
-                    self.emit_mic_activated(False)
-                    if not user_response or len(user_response.strip()) < 5:
-                        self.send_and_wait("Let's move on for now.")
-                        self.speaker_turns_completed += 1
-                        self.switch_roles()
-                        return True
+                    self.send_and_wait("Let's continue.")
+                    self.speaker_turns_completed += 1
+                    self.switch_roles()
+                    return True
             
-            print(f"[USER INPUT RECEIVED] {user_response}")
             if self.is_goodbye(user_response):
-                self.send_and_wait("Goodbye! It was nice talking with you.")
-                # Removed intermediate save - will save at conversation end
+                self.send_and_wait("Goodbye! Thanks for practicing with me.")
                 return False
             
-            # Check if user response is completely unrelated to the I-statement
-            i_statement_keywords = set(i_statement.lower().split())
-            user_response_keywords = set(user_response.lower().split())
-            common_keywords = i_statement_keywords.intersection(user_response_keywords)
-            
-            # If very few keywords match, the user likely misheard
-            if len(common_keywords) < 2 and len(i_statement_keywords) > 5:
-                self.send_and_wait("I think you might have misheard me. I said: " + i_statement.strip())
-                self.send_and_wait("Could you please repeat what I said?")
-                self.emit_mic_activated(True)
-                user_response = self.listen()
-                self.emit_mic_activated(False)
-                if not user_response or len(user_response.strip()) < 5:
-                    self.send_and_wait("Let's move on for now.")
-                    self.speaker_turns_completed += 1
-                    self.switch_roles()
-                    return True
-            
-            # If user input is still too short or unclear, prompt again
-            if len(user_response.strip().split()) < 3:
-                self.send_and_wait("Could you say a bit more about what you heard me say?")
-                self.emit_mic_activated(True)
-                user_response = self.listen()
-                self.emit_mic_activated(False)
-                if not user_response or len(user_response.strip().split()) < 3:
-                    self.send_and_wait("Let's move on for now.")
-                    self.speaker_turns_completed += 1
-                    self.switch_roles()
-                    return True
-            
-            paraphrased = self.paraphrase_for_listener(user_response)
-            self.send_and_wait(paraphrased)
-            self.add_natural_pause("quick")
-            self.send_and_wait(self.get_confirmation_prompt())
-            self.emit_mic_activated(True)
-            confirmation = self.listen()
-            self.emit_mic_activated(False)
-            
-            if confirmation and self.is_confirmation(confirmation):
+            # Check if user's paraphrase is accurate
+            if self.is_accurate_paraphrase(self.current_i_statement, user_response):
                 self.send_and_wait("Yes, that's right. Thank you!")
                 self.speaker_turns_completed += 1
                 self.switch_roles()
             else:
-                # Only ask for clarification if user explicitly says "No" or gives unclear feedback
-                if confirmation and confirmation.strip().lower() in ["no", "not really", "not quite", "not exactly", "that is not what i said"]:
-                    self.send_and_wait("I understand. Could you please repeat what I said in your own words?")
-                    self.emit_mic_activated(True)
-                    retry_response = self.listen()
-                    self.emit_mic_activated(False)
-                    if retry_response and len(retry_response.strip()) >= 5:
-                        retry_paraphrased = self.paraphrase_for_listener(retry_response)
-                        self.send_and_wait(retry_paraphrased)
-                        self.send_and_wait(self.get_confirmation_prompt())
-                        self.emit_mic_activated(True)
-                        retry_confirmation = self.listen()
-                        self.emit_mic_activated(False)
-                        if retry_confirmation and self.is_confirmation(retry_confirmation):
-                            self.send_and_wait("Thank you for clarifying! Let's continue.")
-                            self.speaker_turns_completed += 1
-                            self.switch_roles()
-                        else:
-                            self.send_and_wait("Let's move on for now.")
-                            self.speaker_turns_completed += 1
-                            self.switch_roles()
-                    else:
-                        self.send_and_wait("Let's move on for now.")
-                        self.speaker_turns_completed += 1
-                        self.switch_roles()
+                # User didn't paraphrase accurately - provide feedback and correct paraphrase
+                self.send_and_wait("Let me help you with that. What I said was:")
+                self.send_and_wait(f'"{self.current_i_statement}"')
+                self.send_and_wait("Try to repeat back the key points: my feelings, the situation, and the impact.")
+                
+                # Give them another chance
+                self.emit_mic_activated(True)
+                retry_response = self.listen()
+                self.emit_mic_activated(False)
+                
+                if retry_response and self.is_accurate_paraphrase(self.current_i_statement, retry_response):
+                    self.send_and_wait("Much better! Thank you.")
                 else:
-                    # If confirmation is unclear or missing, assume it's correct and continue
-                    self.send_and_wait("Thank you! Let's continue.")
-                    self.speaker_turns_completed += 1
-                    self.switch_roles()
+                    self.send_and_wait("That's okay. The key points were: I feel stressed about work-life balance, which affects family time.")
+                
+                self.speaker_turns_completed += 1
+                self.switch_roles()
             return True
         except Exception as e:
             print(f"Error in speaker mode: {e}")
-            # Removed intermediate save - will save at conversation end
             return False
 
     def generate_i_statement(self):
@@ -550,7 +548,7 @@ class ConversationBot:
         Send a message to the user with optional TTS and wait for audio to finish
         """
         try:
-            print(f"[BOT] send_and_wait called with: {text[:50]}...")
+            print(f"[BOT] send_and_wait called with: {text}")
             
             # Generate TTS audio using Groq
             print(f"[BOT] Generating TTS audio")
@@ -822,7 +820,7 @@ class ConversationBot:
             print("[BOT] Introduction sent")
             
             topics = self.generate_issue_suggestions()
-            prompt = f"What would you like to talk about today? For example: {topics}, or your own topic."
+            prompt = f"What would you like to talk about today? For example: {topics}."
             self.send_and_wait(prompt)
             print("[BOT] Topic prompt sent, activating mic")
             
@@ -831,35 +829,67 @@ class ConversationBot:
             self.emit_mic_activated(False)
             print(f"[BOT] Received user issue: {user_issue}")
             
+            # Handle "My own topic" properly
             if not user_issue or len(user_issue.strip()) < 3:
-                self.send_and_wait("Please tell me more about your issue.")
+                self.send_and_wait("What topic would you like to discuss?")
                 self.emit_mic_activated(True)
                 user_issue = self.listen()
                 self.emit_mic_activated(False)
+            elif user_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
+                # Keep asking until we get a specific topic
+                attempts = 0
+                while attempts < 3:
+                    self.send_and_wait("What specific topic would you like to talk about?")
+                    self.emit_mic_activated(True)
+                    specific_topic = self.listen()
+                    self.emit_mic_activated(False)
+                    
+                    if specific_topic and len(specific_topic.strip()) > 5 and specific_topic.lower().strip() not in ["my own topic", "own topic", "my topic", "my own"]:
+                        user_issue = specific_topic
+                        break
+                    
+                    attempts += 1
+                    if attempts < 3:
+                        self.send_and_wait("Please share a specific topic you'd like to discuss, like 'work stress' or 'family relationships'.")
+                
+                # If still no specific topic after 3 attempts, use a default
+                if not user_issue or user_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
+                    user_issue = "communication and understanding"
             
             cleaned_issue = self.clean_issue_choice(user_issue)
             print(f"[BOT] Cleaned issue: {cleaned_issue}")
             
-            vague_phrases = [
-                "something else", "my own issue", "my own topic", "different issue", "other issue", "another issue", "i want to discuss", "i would like to discuss", "i'd like to discuss", "i want to talk about", "i would like to talk about"
-            ]
-            if any(phrase in cleaned_issue.lower() for phrase in vague_phrases):
-                self.send_and_wait("Please tell me more about your topic. What would you like to discuss?")
-                self.emit_mic_activated(True)
-                user_issue_detail = self.listen()
-                self.emit_mic_activated(False)
-                if user_issue_detail and len(user_issue_detail.strip()) > 3:
-                    self.selected_issue = self.clean_and_paraphrase_issue(user_issue_detail, natural=True)
-                else:
-                    self.selected_issue = "a topic of your choice"
-            else:
-                self.selected_issue = self.clean_and_paraphrase_issue(cleaned_issue, natural=True)
+            # Secondary check: if clean_issue_choice returned a "my own topic" variant, handle it
+            if cleaned_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
+                print(f"[BOT] Detected 'my own topic' variant after cleaning: {cleaned_issue}")
+                # Keep asking until we get a specific topic
+                attempts = 0
+                while attempts < 3:
+                    self.send_and_wait("What specific topic would you like to talk about?")
+                    self.emit_mic_activated(True)
+                    specific_topic = self.listen()
+                    self.emit_mic_activated(False)
+                    
+                    if specific_topic and len(specific_topic.strip()) > 5 and specific_topic.lower().strip() not in ["my own topic", "own topic", "my topic", "my own"]:
+                        cleaned_issue = self.clean_issue_choice(specific_topic)
+                        print(f"[BOT] Got specific topic: {specific_topic}, cleaned: {cleaned_issue}")
+                        break
+                    
+                    attempts += 1
+                    if attempts < 3:
+                        self.send_and_wait("Please share a specific topic you'd like to discuss, like 'work stress' or 'family relationships'.")
+                
+                # If still no specific topic after 3 attempts, use a default
+                if not cleaned_issue or cleaned_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
+                    cleaned_issue = "communication and understanding"
+                    print(f"[BOT] Using default topic: {cleaned_issue}")
+            
+            self.selected_issue = self.clean_and_paraphrase_issue(cleaned_issue, natural=True)
             
             print(f"[BOT] Final selected issue: {self.selected_issue}")
+            # Combine confirmation and role assignment into one message
             self.send_and_wait(f"Thanks for sharing. We'll talk about: {self.selected_issue}")
             self.add_natural_pause("thinking")
-            self.send_and_wait("I'll start as speaker. You listen.")
-            self.add_natural_pause("transition")
             print("[BOT] Issue selection phase completed successfully")
             return True
         except Exception as e:
@@ -872,6 +902,11 @@ class ConversationBot:
         """Clean and format the user's issue choice"""
         # Remove common phrases that don't add meaning
         cleaned = user_input.strip().lower()
+        
+        # Check if this is a "my own topic" response that needs special handling
+        my_topic_variants = ["my own topic", "own topic", "my topic", "my own"]
+        if cleaned in my_topic_variants:
+            return cleaned  # Return as-is so issue_selection_phase can handle it
         
         # Define phrases to remove
         phrases_to_remove = [
@@ -983,124 +1018,32 @@ Only return the clean summary, nothing else."""
         return cleaned
 
     def generate_issue_suggestions(self):
-        issues = [
-            "household chores",
-            "work-life balance",
-            "making decisions",
+        """Suggest common issues to discuss in the Speaker-Listener Technique"""
+        suggestions = [
+            "household chores, work-life balance, making decisions, or say your own topic"
         ]
-        return ", ".join(issues)
-
-    def problem_solving_phase(self):
-        from bot.response_generator import detect_hardship, generate_empathetic_response
-        try:
-            print("[BOT] Entering problem-solving phase")
-            self.emit_mic_activated(False)
-            # Combine problem-solving introduction messages
-            self.send_and_wait("Now let's work together to find a solution. What idea do you have?")
-            self.emit_mic_activated(True)
-            user_solutions = self.listen()
-            self.emit_mic_activated(False)
-            if user_solutions:
-                is_incomplete = self.is_incomplete_input(user_solutions)
-                if is_incomplete or len(user_solutions.strip()) < 5 or user_solutions.strip().endswith("?"):
-                    self.send_and_wait("Could you share your idea or what you think might help?")
-                    self.emit_mic_activated(True)
-                    clarification = self.listen()
-                    self.emit_mic_activated(False)
-                    if not clarification or len(clarification.strip()) < 5 or self.is_incomplete_input(clarification):
-                        self.send_and_wait("No worries. Let's brainstorm together. What would help you most?")
-                    else:
-                        if detect_hardship(clarification):
-                            empathetic = generate_empathetic_response(clarification)
-                            self.send_and_wait(empathetic)
-                        else:
-                            collaborative_response = self.generate_collaborative_response(clarification)
-                            self.send_and_wait(collaborative_response)
-                elif detect_hardship(user_solutions):
-                    empathetic = generate_empathetic_response(user_solutions)
-                    self.send_and_wait(empathetic)
-                else:
-                    collaborative_response = self.generate_collaborative_response(user_solutions)
-                    self.send_and_wait(collaborative_response)
-            else:
-                self.send_and_wait("No worries. Let's brainstorm together. What would help you most?")
-            self.add_natural_pause("transition")
-            self.send_and_wait("That was a great conversation! Thanks for practicing with me. Come back anytime you want to talk.")
-            self.save_conversation()
-            return False
-        except Exception as e:
-            print(f"Error in problem-solving phase: {e}")
-            # Removed intermediate save - will save at conversation end
-            return False
-
-    def is_incomplete_input(self, text):
-        """Check if user input appears incomplete or unclear"""
-        if not text:
-            return True
-            
-        text = text.strip()
-        
-        # Check for trailing conjunctions (incomplete sentences)
-        trailing_conjunctions = ["and", "but", "or", "so", "because", "however", "although", "while", "though"]
-        words = text.split()
-        if words and words[-1].lower() in trailing_conjunctions:
-            return True
-            
-        # Check for trailing prepositions
-        trailing_prepositions = ["with", "to", "for", "in", "on", "at", "by", "from", "about", "of", "up", "out"]
-        if words and words[-1].lower() in trailing_prepositions:
-            return True
-            
-        # Check for incomplete phrases
-        incomplete_phrases = ["i think", "maybe", "perhaps", "possibly", "i guess", "i suppose"]
-        text_lower = text.lower()
-        if any(phrase in text_lower and not text_lower.endswith(phrase) for phrase in incomplete_phrases):
-            # If it's just the phrase without elaboration
-            if len(text.split()) <= 3:
-                return True
-                
-        # Check for very short responses that might be incomplete
-        if len(text.split()) <= 2 and not text.endswith(('.', '!', '?')):
-            return True
-            
-        return False
-
-    def generate_collaborative_response(self, user_solutions):
-        """Generate a collaborative response to user's solutions"""
-        # Check if the input is incomplete or unclear
-        if self.is_incomplete_input(user_solutions):
-            return "That's a good start. Let's explore that idea further together."
-            
-        prompt = f"""The user suggested this solution: {user_solutions}
-        
-        Generate a brief, collaborative response that:
-        1. Acknowledges their idea positively but not overly enthusiastically
-        2. Builds on their suggestion modestly
-        3. Shows willingness to work together
-        4. Keeps it under 20 words
-        5. Uses "we" statements to show partnership
-        6. Avoids being overly excited or using exclamation marks"""
-        
-        try:
-            response = self.llm_api.generate_response([{"role": "user", "content": prompt}])
-            if response and response.strip():
-                return response.strip()
-            else:
-                return "That's a good approach. Let's work on this together."
-        except Exception as e:
-            print(f"Error generating collaborative response: {e}")
-            return "That's a good approach. Let's work on this together."
+        return random.choice(suggestions)
 
     def is_confirmation(self, text):
-        confirmation_phrases = ["yes", "correct", "right", "that is correct", "yes that is correct", "affirmative", "indeed"]
-        negation_phrases = ["no", "not", "incorrect", "wrong", "that's not right", "nope"]
+        confirmation_phrases = ["yes", "correct", "right", "that is correct", "yes that is correct", 
+                               "affirmative", "indeed", "uh yes", "uh, yes", "um yes", "um, yes", 
+                               "yeah", "yep", "yup", "that's right", "exactly"]
+        negation_phrases = ["no", "not", "incorrect", "wrong", "that's not right", "nope", "that's wrong"]
         if not text:
             return False
-        text_lower = text.lower()
+        text_lower = text.lower().strip()
+        
+        # Handle feedback with corrections (these are NOT simple confirmations)
+        feedback_phrases = ["but you should", "you should have", "but it should", "however you", "except you"]
+        if any(phrase in text_lower for phrase in feedback_phrases):
+            return False  # This is feedback, not confirmation
+        
         # If both yes and no/negation present, treat as ambiguous
         if any(yes in text_lower for yes in confirmation_phrases) and any(no in text_lower for no in negation_phrases):
             return None  # ambiguous
-        return any(text_lower.startswith(phrase) or text_lower == phrase for phrase in confirmation_phrases)
+        
+        # Check for clear confirmations
+        return any(phrase in text_lower for phrase in confirmation_phrases) and not any(no in text_lower for no in negation_phrases)
 
     def is_goodbye(self, text):
         return any(word in text.lower() for word in ['goodbye', 'bye', 'ok bye', 'exit', 'quit'])
@@ -1215,12 +1158,227 @@ Only return the clean summary, nothing else."""
 
     def is_user_paraphrase(self, user_input):
         # Detect if user input is a paraphrase/confirmation
+        user_input_lower = user_input.lower().strip()
+        
+        # Paraphrase markers that indicate user is trying to repeat back
         paraphrase_markers = [
-            'you said', 'is that what you said', 'did i get it right', 'did i understand',
-            'am i correct', 'let me know if', 'did i hear', 'did i get', 'did i understand you'
+            'you said', 'you feel', 'you think', 'you believe', 'you mentioned',
+            'i heard you say', 'what i heard', 'you talked about', 'you were saying'
         ]
-        user_input_lower = user_input.lower()
-        return any(marker in user_input_lower for marker in paraphrase_markers)
+        
+        # Check if input contains paraphrase markers
+        has_markers = any(marker in user_input_lower for marker in paraphrase_markers)
+        
+        # Check if input is substantial enough to be a paraphrase (more than 10 words)
+        is_substantial = len(user_input.split()) >= 10
+        
+        # Check if it's not just a simple confirmation (including hesitant ones)
+        simple_confirmations = ['yes', 'correct', 'right', 'that is correct', 'yes that is correct', 
+                              'uh yes', 'uh, yes', 'um yes', 'um, yes', 'yeah', 'yep', 'yup']
+        is_simple_confirmation = any(conf in user_input_lower for conf in simple_confirmations)
+        
+        # It's a paraphrase if it has markers and is substantial, or if it's clearly referencing what was said
+        return (has_markers and is_substantial) or (is_substantial and not is_simple_confirmation)
+
+    def is_accurate_paraphrase(self, original_statement, user_paraphrase):
+        """Check if user's paraphrase accurately captures the original statement's meaning"""
+        try:
+            # Clean inputs
+            original_clean = original_statement.lower().strip().strip('".')
+            user_clean = user_paraphrase.lower().strip()
+            
+            print(f"[BOT] Checking paraphrase accuracy:")
+            print(f"[BOT] Original: {original_clean}")
+            print(f"[BOT] User said: {user_clean}")
+            
+            # STRICT: Immediately reject obvious nonsense content
+            nonsense_patterns = [
+                'mangoes', 'apples', 'bananas', 'oranges',  # Fruit nonsense
+                'blah', 'bla', 'whatever', 'random', 'nonsense',
+                'asdfgh', 'qwerty', 'xyz', 'abc',  # Random typing
+                'test', 'testing', '123', 'hello world'  # Test inputs
+            ]
+            
+            # Check for repeated nonsense words (like "mangoes, mangoes, mangoes")
+            words = user_clean.split()
+            if len(words) >= 3:
+                # Check if same word repeated 3+ times
+                for i in range(len(words) - 2):
+                    if words[i] == words[i+1] == words[i+2] and len(words[i]) > 2:
+                        print(f"[BOT] Detected repeated nonsense word: {words[i]}")
+                        return False
+            
+            # Check for any nonsense content
+            if any(pattern in user_clean for pattern in nonsense_patterns):
+                print(f"[BOT] Detected nonsense content in paraphrase")
+                return False
+            
+            # STRICT: Reject if too short to be meaningful
+            if len(user_clean.split()) < 5:  # Increased from 5
+                print(f"[BOT] Paraphrase too short: {len(user_clean.split())} words (minimum 8)")
+                return False
+            
+            # STRICT: Check for grammatical completeness - reject broken sentences
+            broken_patterns = [
+                'to.', 'to,', 'and.', 'but.', 'or.', 'closer to.', 'back to.', 
+                'with.', 'from.', 'about.', 'like.', 'such.', 'when.',
+                'i i ', 'you you ', 'the the ', 'and and ', 'but but ',
+                ' closer to', ' back to', ' such like', ' you such',
+                'exploding', 'exploading',  # Common speech recognition errors
+                'explode the', 'exploding the'  # "exploring" misheard as "exploding"
+            ]
+            if any(pattern in user_clean for pattern in broken_patterns):
+                print(f"[BOT] Detected incomplete/broken sentence structure or speech recognition errors")
+                return False
+            
+            # STRICT: Must contain key perspective transformation words
+            required_perspective_indicators = [
+                'you feel', 'you said', 'you think', 'you believe', 'you mentioned',
+                'you talked about', 'you were saying', 'you expressed', 'you shared'
+            ]
+            
+            has_perspective_transformation = any(indicator in user_clean for indicator in required_perspective_indicators)
+            if not has_perspective_transformation:
+                print(f"[BOT] Paraphrase lacks proper perspective transformation")
+                return False
+            
+            # Extract key concepts from original statement
+            original_concepts = self.extract_key_concepts(original_clean)
+            user_concepts = self.extract_key_concepts(user_clean)
+            
+            print(f"[BOT] Original concepts: {original_concepts}")
+            print(f"[BOT] User concepts: {user_concepts}")
+            
+            # STRICT: Check if user captured at least 60% of key concepts (increased from 50%)
+            if not original_concepts:
+                return len(user_concepts) > 0  # Basic check
+            
+            overlap = len(set(original_concepts) & set(user_concepts))
+            coverage = overlap / len(original_concepts) if original_concepts else 0
+            
+            print(f"[BOT] Concept overlap: {overlap}/{len(original_concepts)} = {coverage:.2f}")
+            
+            # STRICT: Require at least 60% concept coverage for accuracy
+            is_accurate = coverage >= 0.6
+            print(f"[BOT] Paraphrase accuracy result: {is_accurate} (required: 60% coverage)")
+            return is_accurate
+            
+        except Exception as e:
+            print(f"[BOT] Error checking paraphrase accuracy: {e}")
+            # Conservative fallback - if we can't check, assume it needs work
+            return len(user_paraphrase.split()) >= 10
+
+    def extract_key_concepts(self, text):
+        """Extract key concepts from text for similarity checking"""
+        try:
+            # Remove common stop words and extract meaningful terms
+            stop_words = {
+                'i', 'you', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had',
+                'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can',
+                'that', 'this', 'these', 'those', 'my', 'your', 'his', 'her', 'our', 'their'
+            }
+            
+            words = text.lower().split()
+            concepts = [word.strip('.,!?";:()[]{}') for word in words 
+                       if word.strip('.,!?";:()[]{}') not in stop_words 
+                       and len(word.strip('.,!?";:()[]{}')) > 2]
+            
+            return list(set(concepts))  # Remove duplicates
+            
+        except Exception as e:
+            print(f"Error extracting concepts: {e}")
+            return []
+
+    def is_feedback_about_paraphrasing(self, text):
+        """Detect if user is giving feedback about paraphrasing quality"""
+        feedback_indicators = [
+            "but you should", "you should have", "in your perspective", "from your perspective",
+            "you should say", "you didn't paraphrase", "not paraphrasing", "just repeating",
+            "that's not paraphrasing", "you're just saying", "you repeated", "say it differently"
+        ]
+        text_lower = text.lower()
+        return any(indicator in text_lower for indicator in feedback_indicators)
+
+    def improve_paraphrase(self, original_user_input, user_feedback):
+        """Generate an improved paraphrase based on user feedback"""
+        try:
+            # Use the paraphrase function but with specific instructions based on feedback
+            improved = paraphrase(original_user_input)
+            
+            # If the feedback mentions perspective, ensure we transform pronouns properly
+            if "perspective" in user_feedback.lower() or "your" in user_feedback.lower():
+                # Transform "I" statements to "you" statements properly
+                transformed = original_user_input.lower()
+                transformed = transformed.replace("i want you to know", "you want me to understand")
+                transformed = transformed.replace("i have been", "you've been")  
+                transformed = transformed.replace("i am", "you are")
+                transformed = transformed.replace("i'm", "you're")
+                transformed = transformed.replace("i feel", "you feel")
+                transformed = transformed.replace("i don't know", "you're uncertain")
+                
+                return f"It sounds like {transformed}."
+            
+            return improved
+            
+        except Exception as e:
+            print(f"Error improving paraphrase: {e}")
+            return "I hear you sharing something important, and I want to understand it better."
+
+    def create_fallback_paraphrase(self, user_input):
+        """Create a proper paraphrase fallback that NEVER repeats verbatim"""
+        try:
+            text_lower = user_input.lower().strip()
+            
+            # Specific transformations for common patterns - ensure proper pronoun transformation
+            if text_lower.startswith('i have been'):
+                content = text_lower[11:].strip()
+                return f"I hear you saying that you've been {content}."
+            elif text_lower.startswith('i want you to know'):
+                content = text_lower[18:].strip()
+                return f"It sounds like you want me to understand that {content}."
+            elif text_lower.startswith('i have been'):
+                content = text_lower[12:].strip()
+                return f"I hear you saying that you've been {content}."
+            elif text_lower.startswith('i am ') or text_lower.startswith("i'm "):
+                if text_lower.startswith("i'm "):
+                    content = text_lower[4:].strip()
+                else:
+                    content = text_lower[5:].strip()
+                return f"What I understand is that you're {content}."
+            elif text_lower.startswith('i feel'):
+                content = text_lower[6:].strip()
+                return f"It sounds like you're feeling {content}."
+            elif text_lower.startswith('i think'):
+                content = text_lower[7:].strip()
+                return f"I hear you expressing the belief that {content}."
+            elif text_lower.startswith('i need'):
+                content = text_lower[6:].strip()
+                return f"I hear you saying that you need {content}."
+            elif text_lower.startswith('i want'):
+                content = text_lower[6:].strip()
+                return f"I understand that you're hoping {content}."
+            elif text_lower.startswith('i love'):
+                content = text_lower[6:].strip()
+                return f"It sounds like you're expressing that you love {content}."
+            elif text_lower.startswith('i don\'t know'):
+                content = text_lower[12:].strip()
+                return f"I understand you're feeling uncertain about {content}."
+            elif text_lower.startswith('i don\'t'):
+                content = text_lower[7:].strip()
+                return f"I understand you're saying that you don't {content}."
+            elif '?' in text_lower:
+                return f"I hear you asking about something important to you."
+            else:
+                # Generic transformation that changes structure and ensures pronoun transformation
+                transformed = text_lower.replace('i ', 'you ').replace('my ', 'your ').replace(' me ', ' you ').replace(' me.', ' you.').replace(' me,', ' you,')
+                # Clean up any awkward constructions
+                transformed = transformed.replace('you am', 'you are').replace('you\'m', 'you\'re')
+                return f"What I'm hearing is that {transformed}."
+                
+        except Exception as e:
+            print(f"Error in fallback paraphrase: {e}")
+            return "I hear you sharing something meaningful, and I want to understand it correctly."
 
 if __name__ == "__main__":
     bot = ConversationBot()

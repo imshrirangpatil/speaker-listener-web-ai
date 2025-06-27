@@ -12,7 +12,7 @@
   <title>Charisma Bot | AI SLT</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <style>
     /* [UNCHANGED STYLE] your existing styles go here... */
     body {
@@ -240,7 +240,7 @@
 
 <audio id="bot-audio" hidden></audio>
 
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 <script>
@@ -293,10 +293,37 @@
   }
 
   function endSession() {
-    // Call endSession function from app.js
-    if (typeof endSession !== 'undefined') {
-      window.endSession();
+    console.log('[CLIENT] endSession called from HTML');
+    
+    // Use the app.js function if available
+    if (typeof window.endSessionFromApp === 'function') {
+      window.endSessionFromApp();
+      return;
     }
+    
+    // Fallback implementation if app.js is not loaded
+    if (sessionId && typeof socket !== 'undefined') {
+      socket.emit('end_session', { session_id: sessionId });
+    }
+    
+    // Reset UI to setup state
+    document.getElementById("setup-ui").style.display = "block";
+    const initially_hidden = document.getElementById("initially-hidden");
+    initially_hidden.classList.add("hidden");
+    
+    // Clear chat messages  
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      chatMessages.innerHTML = '';
+    }
+    
+    // Reset character selection
+    const characterSelect = document.getElementById('characterSelect');
+    if (characterSelect) {
+      characterSelect.value = '';
+    }
+    
+    sessionId = null;
   }
 
   function capitalize(str) {
@@ -353,8 +380,8 @@
 
   // Page unload handler
   window.addEventListener('beforeunload', () => {
-    if (typeof endSession === 'function') {
-      endSession();
+    if (sessionId && typeof socket !== 'undefined') {
+      socket.emit('end_session', { session_id: sessionId });
     }
   });
 </script>

@@ -29,36 +29,44 @@
     }
 
     .chat-bubble {
-      margin: 0px auto 10px;
-      width: 160px;
-      height: 160px;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      border: 3px solid #2e7d32;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 48px;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
-      animation: pulse 2s infinite;
-      transition: background-color 0.4s, box-shadow 0.4s;
+      color: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      margin: 0 auto 20px auto;
     }
 
     .mic-on {
-      background-color: #4CAF50;
+      background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+      border: 3px solid #2e7d32 !important;
       box-shadow: 0 0 30px rgba(76, 175, 80, 0.7);
     }
 
     .mic-off {
-      background-color: #2196F3;
+      background: linear-gradient(135deg, #2196F3, #1976D2) !important;
+      border: 3px solid #1565C0 !important;
       box-shadow: 0 0 30px rgba(33, 150, 243, 0.7);
     }
 
     #voice-bubble {
-      transition: background-color 1.0s ease, box-shadow 1.0s ease;
+      transition: background 1.0s ease, box-shadow 1.0s ease, border 1.0s ease;
     }
 
     .launching {
-      background-color: #9374ef;
-      box-shadow: 0 0 30px rgba(147, 116, 239, 0.7);
+      background: linear-gradient(135deg, #9C27B0, #7B1FA2) !important;
+      border: 3px solid #6A1B9A !important;
+      box-shadow: 0 0 30px rgba(156, 39, 176, 0.7);
     }
 
     @keyframes pulse {
@@ -67,7 +75,9 @@
       100% { transform: scale(1); }
     }
 
-    .hidden { display: none; }
+    .hidden {
+      display: none !important;
+    }
 
     select, #create-button {
       padding: 12px;
@@ -208,10 +218,10 @@
       <option value="pessimistic">Pessimistic</option>
     </select>
     <br>
-    <button id="create-button" onclick="startSession()">Start a Session</button>
+    <button id="create-button">Start a Session</button>
   </div>
 
-  <div id="initially-hidden" class="hidden">
+  <div id="session-ui" class="hidden">
     <div id="voice-bubble" class="chat-bubble launching">
       <span id="role-icon"></span>
     </div>
@@ -258,6 +268,10 @@
   // socket.on('session_assigned', (data) => { ... });
   // socket.on('session_ended', (data) => { ... });
 
+  // Session handling moved to app.js - remove duplicate function
+  // All session management is now handled by app.js event listeners
+  // All session management is now handled by app.js event listeners
+  // All session management is now handled by app.js event listeners
   function startSession() {
     const selected = document.getElementById('characterSelect').value;
     if (!selected) {

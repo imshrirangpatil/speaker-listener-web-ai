@@ -82,10 +82,22 @@ socket.on('session_ended', (data) => {
     resetToSetup();
 });
 
+<<<<<<< HEAD
+// DOM elements
+const chatMessages = document.getElementById('chat-messages');
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+const micButton = document.getElementById('mic-button');
+const startButton = document.getElementById('create-button');
+const characterSelect = document.getElementById('characterSelect');
+const setupUI = document.getElementById('setup-ui');
+const sessionUI = document.getElementById('session-ui');
+=======
 socket.on('session_updated', (data) => {
     console.log('[CLIENT] Session updated:', data.session_id);
     sessionId = data.session_id;
 });
+>>>>>>> origin/master
 
 socket.on('connection_confirmed', (data) => {
     console.log('[CLIENT] Connection confirmed for session:', data.session_id);
@@ -127,13 +139,50 @@ function initAudioContext() {
         if (!audioContext) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+<<<<<<< HEAD
+                console.log('[CLIENT] Audio context created, state:', audioContext.state);
+            } catch (error) {
+                console.error('[CLIENT] Failed to create audio context:', error);
+                // Don't block the interface, continue without audio context
+=======
                 console.log('[CLIENT] AudioContext state:', audioContext.state);
             } catch (err) {
                 console.error('[CLIENT] Failed to create AudioContext:', err);
+>>>>>>> origin/master
                 return false;
             }
         }
         if (audioContext.state === 'suspended') {
+<<<<<<< HEAD
+            console.log('[CLIENT] Audio context is suspended, will resume on user interaction');
+            
+            // Don't block the interface - just set up listeners for later resume
+            if (isSafari) {
+                // Create a simple user interaction handler for Safari
+                const resumeAudio = () => {
+                    audioContext.resume().then(() => {
+                        console.log('[CLIENT] Audio context resumed successfully for Safari');
+                        // Remove listeners after successful resume
+                        document.removeEventListener('click', resumeAudio);
+                        document.removeEventListener('touchstart', resumeAudio);
+                        document.removeEventListener('touchend', resumeAudio);
+                        document.removeEventListener('keydown', resumeAudio);
+                    }).catch(error => {
+                        console.log('[CLIENT] Failed to resume audio context in Safari:', error);
+                    });
+                };
+                
+                // Add multiple event listeners for Safari
+                document.addEventListener('click', resumeAudio, { once: true });
+                document.addEventListener('touchstart', resumeAudio, { once: true });
+                document.addEventListener('touchend', resumeAudio, { once: true });
+                document.addEventListener('keydown', resumeAudio, { once: true });
+                
+                console.log('[CLIENT] Safari audio context resume listeners added');
+            }
+        } else {
+            console.log('[CLIENT] Audio context is ready');
+=======
             console.log('[CLIENT] AudioContext suspended, attempting resume...');
             const resume = () => {
                 audioContext.resume().then(() => {
@@ -146,10 +195,11 @@ function initAudioContext() {
             document.addEventListener('click', resume, { once: true });
             document.addEventListener('touchstart', resume, { once: true });
             document.addEventListener('keydown', resume, { once: true });
+>>>>>>> origin/master
         }
         return true;
     } else {
-        console.error('[CLIENT] Web Audio API not supported');
+        console.log('[CLIENT] Web Audio API not supported, will use HTML5 audio');
         return false;
     }
 }
@@ -323,6 +373,181 @@ function addMessage(text, sender) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+<<<<<<< HEAD
+// Handle mic button click
+function toggleMicrophone() {
+    if (!recognition) {
+        console.error('[CLIENT] Speech recognition not available');
+        return;
+    }
+    
+    if (isListening) {
+        recognition.stop();
+    } else {
+        recognition.start();
+    }
+}
+
+// Switch to session UI
+function switchToSession(newSessionId) {
+    console.log('[CLIENT] Switching to session UI', newSessionId ? `with session ID: ${newSessionId}` : '');
+    
+    if (newSessionId) {
+        sessionId = newSessionId;
+        console.log('[CLIENT] Session started, reconnecting socket with session ID:', sessionId);
+        
+        // Disconnect and reconnect with correct session ID
+        socket.disconnect();
+        socket.io.opts.query = { session_id: sessionId };
+        socket.connect();
+    }
+    
+    // Switch UI elements
+    if (setupUI) setupUI.style.display = 'none';
+    if (sessionUI) {
+        sessionUI.style.display = 'block';
+        sessionUI.classList.remove('hidden');
+    }
+    
+    // Initialize voice bubble if it exists
+    const voiceBubble = document.getElementById('voice-bubble');
+    if (voiceBubble) {
+        voiceBubble.innerHTML = '<span id="role-icon">👋</span>';
+    }
+    
+    console.log('[CLIENT] UI switched to session view');
+}
+
+// Socket.IO event handlers - only process messages for current session
+socket.on('new_message', (data) => {
+    console.log('[CLIENT] New message received:', data);
+    console.log('[CLIENT] Current sessionId:', sessionId);
+    console.log('[CLIENT] Message session_id:', data.session_id);
+    console.log('[CLIENT] Session match:', !data.session_id || data.session_id === sessionId);
+    // Only process messages for current session or without session ID (for system messages)
+    if (!data.session_id || data.session_id === sessionId) {
+        addMessage(data.text, data.sender);
+        
+        // If it's a bot message, show the bot is speaking (mic off)
+        if (data.sender === 'bot') {
+            const voiceBubble = document.getElementById('voice-bubble');
+            if (voiceBubble) {
+                voiceBubble.classList.remove('mic-on', 'launching');
+                voiceBubble.classList.add('mic-off');
+                voiceBubble.innerHTML = '<span id="role-icon">🤖</span>';
+            }
+        }
+    } else {
+        console.log('[CLIENT] Message filtered out - session ID mismatch');
+    }
+});
+
+socket.on('play_audio_base64', (data) => {
+    console.log('[CLIENT] Audio received!');
+    console.log('[CLIENT] Current sessionId:', sessionId);
+    console.log('[CLIENT] Audio session_id:', data.session_id);
+    console.log('[CLIENT] Audio data type:', typeof data.audio_base64);
+    console.log('[CLIENT] Audio data length:', data.audio_base64 ? data.audio_base64.length : 'null');
+    console.log('[CLIENT] MIME type:', data.mime);
+    console.log('[CLIENT] Audio data preview:', data.audio_base64 ? data.audio_base64.substring(0, 50) + '...' : 'null');
+    
+    // Only process audio for current session or without session ID
+    if (!data.session_id || data.session_id === sessionId) {
+        if (data.audio_base64 && data.audio_base64.length > 0) {
+            queueAndPlayAudio(data.audio_base64, data.mime);
+        } else {
+            console.error('[CLIENT] Audio data is empty or null');
+        }
+    } else {
+        console.log('[CLIENT] Audio filtered out - session ID mismatch');
+    }
+});
+
+socket.on('play_audio', (data) => {
+    console.log('[CLIENT] Audio URL received:', data.url);
+    // Handle audio URL if needed
+});
+
+socket.on('mic_activated', (data) => {
+    console.log('[CLIENT] Mic activation:', data.activated);
+    // Only process for current session or without session ID
+    if (!data.session_id || data.session_id === sessionId) {
+        // Handle microphone button if it exists (charisma.html)
+        if (micButton) {
+            if (data.activated) {
+                micButton.classList.add('active');
+            } else {
+                micButton.classList.remove('active');
+            }
+        }
+        
+        // Handle voice bubble if it exists (index.html)
+        const voiceBubble = document.getElementById('voice-bubble');
+        if (voiceBubble) {
+            if (data.activated) {
+                voiceBubble.classList.remove('mic-off', 'launching');
+                voiceBubble.classList.add('mic-on');
+                voiceBubble.innerHTML = '<span id="role-icon">🎤</span>';
+            } else {
+                voiceBubble.classList.remove('mic-on', 'launching');
+                voiceBubble.classList.add('mic-off');
+                voiceBubble.innerHTML = '<span id="role-icon">🤖</span>';
+            }
+        }
+        
+        // Handle speech recognition
+        if (data.activated) {
+            // Auto-start speech recognition when mic is activated
+            if (recognition && !isListening) {
+                console.log('[CLIENT] Auto-starting speech recognition...');
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.log('[CLIENT] Speech recognition already running or error:', error);
+                }
+            }
+        } else {
+            // Stop speech recognition when mic is deactivated
+            if (recognition && isListening) {
+                console.log('[CLIENT] Auto-stopping speech recognition...');
+                recognition.stop();
+            }
+        }
+    }
+});
+
+// Handle TTS failure notifications
+socket.on('tts_failed', function(data) {
+    console.log('[CLIENT] TTS failed:', data.message);
+    // Show a subtle notification that audio is unavailable
+    showNotification(data.message, 'warning');
+});
+
+// Add notification system
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'warning' ? '#ff9800' : '#2196f3'};
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Fade in
+    setTimeout(() => notification.style.opacity = '1', 10);
+    
+    // Auto remove after 3 seconds
+=======
 function showNotification(message, type='info') {
     const note = document.createElement('div');
     note.className = `notification ${type}`;
@@ -334,6 +559,7 @@ function showNotification(message, type='info') {
     note.textContent = message;
     document.body.appendChild(note);
     setTimeout(() => note.style.opacity = '1', 10);
+>>>>>>> origin/master
     setTimeout(() => {
         note.style.opacity = '0';
         setTimeout(() => note.remove(), 300);
@@ -341,6 +567,136 @@ function showNotification(message, type='info') {
 }
 
 function resetToSetup() {
+<<<<<<< HEAD
+    console.log('[CLIENT] Resetting to setup UI');
+    
+    // Reset UI
+    if (setupUI) setupUI.style.display = 'block';
+    if (sessionUI) {
+        sessionUI.style.display = 'none';
+        sessionUI.classList.add('hidden');
+    }
+    if (startButton) startButton.disabled = false;
+    if (chatMessages) chatMessages.innerHTML = '';
+    
+    // Reset session
+    sessionId = null;
+    
+    // Reset character selection if element exists
+    if (characterSelect) characterSelect.value = '';
+    
+    console.log('[CLIENT] Reset to setup completed');
+}
+
+// Event listeners
+if (micButton) {
+    micButton.addEventListener('click', toggleMicrophone);
+}
+
+if (sendButton) {
+    sendButton.addEventListener('click', () => {
+        const text = messageInput ? messageInput.value.trim() : '';
+        if (text && sessionId) {
+            socket.emit('user_speech', { text: text, session_id: sessionId });
+            // DON'T add to chat here - server will emit new_message which adds it
+            if (messageInput) messageInput.value = '';
+        }
+    });
+}
+
+if (messageInput) {
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendButton.click();
+        }
+    });
+}
+
+// Initialize everything when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[CLIENT] Page loaded, initializing...');
+    
+    // Initialize audio and speech (non-blocking)
+    initAudioContext();
+    initSpeechRecognition();
+    
+    // Set up start button event listener
+    const startBtn = document.getElementById('create-button');
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            const character = characterSelect ? characterSelect.value : 'optimistic';
+            if (!character) {
+                alert('Please select a character.');
+                return;
+            }
+            
+            console.log('[CLIENT] Starting session with character:', character);
+            
+            // Disable button to prevent double-clicks
+            startBtn.disabled = true;
+            startBtn.textContent = 'Starting...';
+            
+            fetch('/start-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ character: character })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('[CLIENT] Session started:', data);
+                if (data.status === 'success') {
+                    sessionId = data.session_id;
+                    console.log('[CLIENT] Reconnecting socket with session ID:', sessionId);
+                    
+                    // Disconnect and reconnect with correct session ID
+                    socket.disconnect();
+                    socket.io.opts.query = { session_id: sessionId };
+                    socket.connect();
+                    
+                    switchToSession();
+                } else {
+                    alert('❌ ' + (data.message || 'Failed to start session'));
+                    // Re-enable button on error
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Start a Session';
+                }
+            })
+            .catch(error => {
+                console.error('[CLIENT] Error starting session:', error);
+                alert('Something went wrong starting the session.');
+                // Re-enable button on error
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start a Session';
+            });
+        });
+    }
+    
+    // Set up end button event listener
+    const endButton = document.getElementById('end-session-btn');
+    if (endButton) {
+        endButton.addEventListener('click', endSession);
+    }
+    
+    // Add voice bubble click handler for index.html
+    const voiceBubble = document.getElementById('voice-bubble');
+    if (voiceBubble) {
+        voiceBubble.addEventListener('click', () => {
+            console.log('[CLIENT] Voice bubble clicked');
+            if (recognition) {
+                if (isListening) {
+                    console.log('[CLIENT] Stopping speech recognition (manual)');
+                    recognition.stop();
+                } else {
+                    console.log('[CLIENT] Starting speech recognition (manual)');
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.log('[CLIENT] Speech recognition error:', error);
+                    }
+                }
+=======
     // Show setup UI
     const setupElement = document.getElementById('setup-ui');
     if (setupElement) setupElement.style.display = 'block';
@@ -465,9 +821,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (text && sessionId) {
                 socket.emit('user_speech', { text, session_id: sessionId });
                 messageInput.value = '';
+>>>>>>> origin/master
             }
         });
     }
+<<<<<<< HEAD
+    
+    console.log('[CLIENT] Page initialization completed');
+});
+
+// Handle page unload to clean up session
+window.addEventListener('beforeunload', () => {
+    if (sessionId) {
+        socket.emit('end_session');
+    }
+=======
 
     if (messageInput) {
         messageInput.addEventListener('keypress', e => {
@@ -517,6 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('beforeunload', () => {
         if (sessionId) socket.emit('end_session', { session_id: sessionId });
     });
+>>>>>>> origin/master
 });
 
 // -------------------------

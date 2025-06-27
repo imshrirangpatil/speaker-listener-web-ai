@@ -2,7 +2,10 @@ import os
 import io
 import base64
 from io import BytesIO
+from dotenv import load_dotenv
 
+from dotenv import load_dotenv
+load_dotenv()
 # Import OpenAI for TTS
 try:
     from openai import OpenAI

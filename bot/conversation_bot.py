@@ -873,31 +873,6 @@ Only return the statement, nothing else.'''
             cleaned_issue = self.clean_issue_choice(user_issue)
             print(f"[BOT] Cleaned issue: {cleaned_issue}")
             
-            # Secondary check: if clean_issue_choice returned a "my own topic" variant, handle it
-            if cleaned_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
-                print(f"[BOT] Detected 'my own topic' variant after cleaning: {cleaned_issue}")
-                # Keep asking until we get a specific topic
-                attempts = 0
-                while attempts < 3:
-                    self.send_and_wait("What specific topic would you like to talk about?")
-                    self.emit_mic_activated(True)
-                    specific_topic = self.listen()
-                    self.emit_mic_activated(False)
-                    
-                    if specific_topic and len(specific_topic.strip()) > 5 and specific_topic.lower().strip() not in ["my own topic", "own topic", "my topic", "my own"]:
-                        cleaned_issue = self.clean_issue_choice(specific_topic)
-                        print(f"[BOT] Got specific topic: {specific_topic}, cleaned: {cleaned_issue}")
-                        break
-                    
-                    attempts += 1
-                    if attempts < 3:
-                        self.send_and_wait("Please share a specific topic you'd like to discuss, like 'work stress' or 'family relationships'.")
-                
-                # If still no specific topic after 3 attempts, use a default
-                if not cleaned_issue or cleaned_issue.lower().strip() in ["my own topic", "own topic", "my topic", "my own"]:
-                    cleaned_issue = "communication and understanding"
-                    print(f"[BOT] Using default topic: {cleaned_issue}")
-            
             self.selected_issue = self.clean_and_paraphrase_issue(cleaned_issue, natural=True)
             
             print(f"[BOT] Final selected issue: {self.selected_issue}")
@@ -916,11 +891,6 @@ Only return the statement, nothing else.'''
         """Clean and format the user's issue choice"""
         # Remove common phrases that don't add meaning
         cleaned = user_input.strip().lower()
-        
-        # Check if this is a "my own topic" response that needs special handling
-        my_topic_variants = ["my own topic", "own topic", "my topic", "my own"]
-        if cleaned in my_topic_variants:
-            return cleaned  # Return as-is so issue_selection_phase can handle it
         
         # Define phrases to remove
         phrases_to_remove = [
@@ -1034,7 +1004,7 @@ Only return the clean summary, nothing else."""
     def generate_issue_suggestions(self):
         """Suggest common issues to discuss in the Speaker-Listener Technique"""
         suggestions = [
-            "household chores, work-life balance, making decisions, or say your own topic"
+            "household chores, work-life balance, making decisions, or your own topic"
         ]
         return random.choice(suggestions)
 

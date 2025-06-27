@@ -40,12 +40,8 @@ socketio = SocketIO(app,
     ping_timeout=60,
     ping_interval=25,
     async_mode=async_mode,
-    logger=False,  # Disable socketio logging
-    engineio_logger=False,  # Disable engine logging
-    reconnection=True,
-    reconnection_attempts=5,
-    reconnection_delay=1000,
-    reconnection_delay_max=5000,
+    logger=True,  # Enable logging for debugging
+    engineio_logger=True,  # Enable engine logging for debugging
     allow_upgrades=True,
     transports=['polling', 'websocket']
 )
@@ -122,6 +118,15 @@ def home():
     
     return render_template("index.html", session_id=session['user_session_id'])
 
+@app.route("/test-ws", methods=["GET"])
+def test_websocket():
+    """Test endpoint to verify WebSocket connectivity"""
+    return jsonify({
+        "status": "success",
+        "message": "WebSocket server is running",
+        "socketio_version": "5.5.1"
+    })
+
 @app.route("/start-session", methods=["POST"])
 def start_session():
     """
@@ -185,6 +190,9 @@ def handle_connect():
     
     print(f"[SERVER] Client connected to session: {session_id}")
     emit('session_assigned', {'session_id': session_id})
+    
+    # Send connection confirmation
+    emit('connection_confirmed', {'session_id': session_id})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -199,13 +207,39 @@ def handle_disconnect():
             user_sessions[session_id]['active'] = False
 
 @socketio.on('end_session')
-def handle_end_session():
+def handle_end_session(data=None):
     """Handle explicit session termination"""
-    session_id = session.get('user_session_id')
-    if session_id:
-        print(f"[SERVER] Ending session: {session_id}")
-        cleanup_session(session_id)
-        emit('session_ended', {'session_id': session_id}, room=session_id)
+    # Get session ID from data or fallback to Flask session
+    target_session = None
+    if data and 'session_id' in data:
+        target_session = data['session_id']
+    else:
+        target_session = session.get('user_session_id')
+    
+    if target_session:
+        print(f"[SERVER] Ending session: {target_session}")
+        cleanup_session(target_session)
+        emit('session_ended', {'session_id': target_session}, room=target_session)
+
+@socketio.on('update_session_id')
+def handle_update_session_id(data):
+    """Handle session ID updates without reconnection"""
+    if data and 'session_id' in data:
+        new_session_id = data['session_id']
+        old_session_id = session.get('user_session_id')
+        
+        if old_session_id:
+            # Leave old room
+            leave_room(old_session_id)
+            print(f"[SERVER] Client left room: {old_session_id}")
+        
+        # Update session ID and join new room
+        session['user_session_id'] = new_session_id
+        join_room(new_session_id)
+        print(f"[SERVER] Client updated session ID: {old_session_id} -> {new_session_id}")
+        
+        # Confirm the update
+        emit('session_updated', {'session_id': new_session_id})
 
 @socketio.on('mic_activated')
 def handle_mic_activated(data):
@@ -229,8 +263,7 @@ def handle_user_speech(data):
     if session_id:
         user_text = data.get('text', '')
         print(f"[SERVER] Received user speech for session {session_id}: {user_text}")
-        # Emit to specific session room only
-        emit('new_message', {'text': user_text, 'sender': 'user'}, room=session_id)
+        # Only emit user_input - the bot will handle adding it to chat via emit_message
         emit('user_input', {'text': user_text, 'session_id': session_id}, room=session_id)
         print(f"[SERVER] Emitted user_input to room {session_id}")
 

@@ -142,25 +142,6 @@ class ConversationBot:
         print(f"[BOT] Adding natural pause ({message_type}): {duration}s")
         time.sleep(duration)
 
-    def get_friendly_phrase(self):
-        phrases = [
-            "I'm here to listen.",
-            "Take your time.",
-            "I appreciate you sharing.",
-            "Let's work together.",
-            "You're doing great.",
-            "Thanks for being open.",
-            "Let's keep this friendly.",
-            "Feel free to share more."
-        ]
-        return random.choice(phrases)
-
-    def send_friendly_introduction(self):
-        if not self.introduced:
-            self.send_and_wait("Hi, I'm Charisma Bot. Today we'll practice the Speaker-Listener Technique to understand each other better.")
-            self.add_natural_pause("introduction")
-            self.introduced = True
-
     def get_confirmation_prompt(self):
         prompts = [
             "Did I get that right? Please say yes or repeat.",
@@ -270,10 +251,8 @@ class ConversationBot:
             self.emit_mic_activated(False)
             # Brief combined introduction (reduce from 2 messages to 1)
             if not self.role_explained:
-                self.send_and_wait("Let's switch roles now! I'm listening. Take your time.")
+                self.send_and_wait("Let's switch roles now! I'm ready to listen. Take your time.")
                 self.role_explained = True
-            else:
-                self.send_and_wait("I'm listening.")
                 
             last_paraphrase = None
             max_listener_attempts = 3  # Prevent infinite loops
@@ -282,10 +261,11 @@ class ConversationBot:
             while listener_attempt < max_listener_attempts:
                 listener_attempt += 1
                 print(f"[BOT] Listener attempt {listener_attempt}/{max_listener_attempts}")
-                
+            
                 self.emit_mic_activated(True)
                 user_input = self.listen()
                 self.emit_mic_activated(False)
+                
                 if not user_input or len(user_input.strip()) < 5:
                     if listener_attempt >= max_listener_attempts:
                         self.send_and_wait("Let's continue with our conversation.")
@@ -293,9 +273,11 @@ class ConversationBot:
                         break
                     self.send_and_wait("Could you share more?")
                     continue
+                    
                 if self.is_goodbye(user_input):
                     self.send_and_wait("Goodbye! Thanks for practicing with me.")
                     return False
+                    
                 self.current_emotion = detect_emotion(user_input)
                 # Handle "So you said?" or similar
                 if user_input.strip().lower() in ["so you said?", "so you said", "what did you say?", "what did you say"] and last_paraphrase:
@@ -390,7 +372,7 @@ class ConversationBot:
                         self.send_and_wait("Let's continue.")
                         self.listener_turns_completed += 1
                         break
-            
+                    
             # Safety check: if we exit the loop without completing, force completion
             if listener_attempt >= max_listener_attempts and self.listener_turns_completed == 0:
                 print(f"[BOT] Listener mode timed out, forcing completion")
@@ -407,7 +389,7 @@ class ConversationBot:
                 return False
             else:
                 self.switch_roles()
-                return True
+            return True
         except Exception as e:
             print(f"[BOT] Exception in listener_mode: {e}")
             import traceback
@@ -442,7 +424,7 @@ class ConversationBot:
             
             # Brief prompt - combine with short pause
             self.add_natural_pause("thinking")
-            self.send_and_wait("What did you hear?")
+            # self.send_and_wait("What did you hear?")
             
             self.emit_mic_activated(True)
             user_response = self.listen()
@@ -466,14 +448,14 @@ class ConversationBot:
             
             # Check if user's paraphrase is accurate
             if self.is_accurate_paraphrase(self.current_i_statement, user_response):
-                self.send_and_wait("Yes, that's right. Thank you!")
+                self.send_and_wait("Yes, that's correct!")
                 self.speaker_turns_completed += 1
                 self.switch_roles()
             else:
                 # User didn't paraphrase accurately - provide feedback and correct paraphrase
                 self.send_and_wait("Let me help you with that. What I said was:")
                 self.send_and_wait(f'"{self.current_i_statement}"')
-                self.send_and_wait("Try to repeat back the key points: my feelings, the situation, and the impact.")
+                # self.send_and_wait("Try to repeat back the key points: my feelings, the situation, and the impact.")
                 
                 # Give them another chance
                 self.emit_mic_activated(True)
@@ -483,7 +465,9 @@ class ConversationBot:
                 if retry_response and self.is_accurate_paraphrase(self.current_i_statement, retry_response):
                     self.send_and_wait("Much better! Thank you.")
                 else:
-                    self.send_and_wait("That's okay. The key points were: I feel stressed about work-life balance, which affects family time.")
+                    # Provide a summary based on the actual I-statement that was said
+                    summary = self.summarize_i_statement(self.current_i_statement)
+                    self.send_and_wait(f"That's okay. {summary}")
                 
                 self.speaker_turns_completed += 1
                 self.switch_roles()
@@ -492,56 +476,69 @@ class ConversationBot:
             print(f"Error in speaker mode: {e}")
             return False
 
-    def generate_i_statement(self):
-        """Generate a proper "I" statement with specific examples about the selected issue"""
-        if not self.selected_issue:
-            self.selected_issue = "How to manage household responsibilities together"
+    def summarize_i_statement(self, i_statement):
+        """Create a brief summary of the I-statement for feedback purposes"""
+        try:
+            # Extract key emotion and topic from the I-statement
+            statement_lower = i_statement.lower()
             
-        prompt = f"""Generate a proper "I" statement about this specific issue: {self.selected_issue}
-        
-        Rules:
-        1. Start with "I feel..." or "I think..." or "I believe..."
-        2. Focus ONLY on the specific issue: {self.selected_issue}
-        3. Include specific examples or situations related to this issue
-        4. Express emotions and thoughts clearly
-        5. Avoid blaming language
-        6. Keep it under 25 words
-        7. Make it personal and relatable
-        8. Focus on your perspective, not the other person's actions
-        9. Use simple, clear language
-        10. DO NOT mention "another issue" or "different issue"
-        11. Stay focused on the topic: {self.selected_issue}
-        
-        Example for "household chores":
-        "I feel overwhelmed when I have to do most of the household chores by myself. For example, last week I ended up doing the dishes every night, and it made me feel unappreciated."
-        
-        Generate a similar statement for: {self.selected_issue}
-        
-        Make sure the statement is clear, specific, and directly related to the selected issue."""
-        
+            if "feel" in statement_lower:
+                if "valued" in statement_lower or "acknowledge" in statement_lower:
+                    return "The key point was about feeling valued when efforts are acknowledged."
+                elif "content" in statement_lower or "connect" in statement_lower:
+                    return "The key point was about feeling content through shared experiences and connection."
+                elif "happy" in statement_lower or "joy" in statement_lower:
+                    return "The key point was about feeling happier through positive experiences."
+                else:
+                    return f"The key point was what I said about my feelings."
+            elif "think" in statement_lower:
+                return "The key point was about my thoughts and perspective."
+            elif "believe" in statement_lower:
+                return "The key point was about my beliefs and values."
+            else:
+                return "Let me repeat what I said to help you practice."
+        except Exception as e:
+            print(f"Error summarizing I-statement: {e}")
+            return "Let me repeat what I said to help you practice."
+
+    def generate_i_statement(self):
+        """Generate a proper "I" statement with specific examples, but keep the topic open-ended"""
+        prompt = '''Generate a proper "I" statement for a practice conversation.
+
+Rules:
+1. Start with "I feel...", "I think...", or "I believe..."
+2. Do NOT mention any specific topic or issue (keep it open-ended)
+3. Include a specific example or situation, but do not reference any particular subject (e.g., no chores, work, family, etc.)
+4. Express emotions and thoughts clearly
+5. Avoid blaming language
+6. Keep it under 20 words
+7. Make it personal and relatable
+8. Focus on your perspective, not the other person's actions
+9. Use simple, clear language
+10. Do NOT suggest or hint at any particular topic
+
+Only return the statement, nothing else.'''
         try:
             response = self.llm_api.generate_response([{"role": "user", "content": prompt}])
             if response and response.strip():
-                # Validate the response
                 cleaned_response = response.strip()
-                
-                # Check for problematic phrases
-                problematic_phrases = ["another issue", "different issue", "not previously discussed", "other issue"]
-                if any(phrase in cleaned_response.lower() for phrase in problematic_phrases):
-                    # Use fallback if response contains problematic phrases
-                    return f"I feel that {self.selected_issue} is important for our relationship. I want to make sure we're both contributing fairly and feeling appreciated."
+                # Remove any extra quotes or periods that might be malformed
+                cleaned_response = cleaned_response.strip('"\'.,;:')
+                # Remove double quotes at start/end if present
+                if cleaned_response.startswith('"') and cleaned_response.endswith('"'):
+                    cleaned_response = cleaned_response[1:-1].strip()
+                # Ensure it ends with a period
+                if not cleaned_response.endswith(('.', '!', '?')):
+                    cleaned_response += '.'
                 
                 if len(cleaned_response.split()) > 30 or "?" in cleaned_response:
-                    # Use fallback if response is too long or unclear
-                    return f"I feel that {self.selected_issue} is important for our relationship. I want to make sure we're both contributing fairly and feeling appreciated."
-                
+                    return "I feel that open communication is important. I want to make sure we both feel heard and understood."
                 return cleaned_response
             else:
-                # Fallback I statement
-                return f"I feel that {self.selected_issue} is important for our relationship. I want to make sure we're both contributing fairly and feeling appreciated."
+                return "I feel that open communication is important. I want to make sure we both feel heard and understood."
         except Exception as e:
             print(f"Error generating I statement: {e}")
-            return f"I feel that {self.selected_issue} is important for our relationship. I want to make sure we're both contributing fairly and feeling appreciated."
+            return "I feel that open communication is important. I want to make sure we both feel heard and understood."
 
     def send_and_wait(self, text):
         """
@@ -692,13 +689,10 @@ class ConversationBot:
             self.user_input_received = user_text
             self.waiting_for_user_input = False
             
-            # Add user message to conversation history
+            # Add user message to conversation history only (don't emit to frontend to avoid duplication)
             if user_text and user_text.strip():
-                # Detect emotion for user message
+                # Add to conversation history with emotion detection
                 user_emotion = detect_emotion(user_text)
-                self.current_emotion = user_emotion
-                
-                # Add user message to conversation history
                 self.conversation_history.append({
                     "speaker": "user",
                     "message": user_text.strip(),
@@ -710,9 +704,9 @@ class ConversationBot:
                     "session_id": self.session_id
                 })
                 
-                # Real-time Firebase save disabled to prevent overwrites
-                # Final save will happen in save_conversation() with unique timestamp
-                print(f"[BOT] User message added to conversation history for session {self.session_id}")
+            # Real-time Firebase save disabled to prevent overwrites
+            # Final save will happen in save_conversation() with unique timestamp
+            print(f"[BOT] User input processed for session {self.session_id}")
         else:
             print("[BOT] Not waiting for user input, ignoring message")
 
@@ -730,13 +724,12 @@ class ConversationBot:
                 self.send_and_wait("Let's switch roles now! Now I'm the speaker and you'll listen. As the listener, repeat what you hear so I feel understood.")
             self.role_explained = True
         else:
-            # Combine role switch and reminder into single message
+            # Clearly announce who has the floor after role switch
             if self.bot_role == "listener":
-                self.send_and_wait("Let's switch roles now! Remember: as speaker, you share thoughts. As listener, I repeat what I hear.")
+                self.send_and_wait("Let's switch roles now! Now you're the speaker - please share your thoughts.")
             else:
-                self.send_and_wait("Let's switch roles now! Remember: as speaker, I share thoughts. As listener, you repeat what you hear.")
-        self.add_natural_pause("transition")
-        self.send_and_wait(self.get_friendly_phrase())
+                self.send_and_wait("Let's switch roles now! Now I'm the speaker - please listen.")
+            self.add_natural_pause("transition")
 
     def emit_mic_activated(self, activated):
         """Emit mic activation status to specific session."""
@@ -752,16 +745,17 @@ class ConversationBot:
     def emit_message(self, message, sender):
         try:
             # Add bot message to conversation history with enhanced metadata
-            self.conversation_history.append({
-                "speaker": sender,
-                "message": message,
-                "emotion": self.current_emotion,
-                "turn_count": self.turn_count,
-                "bot_role": self.bot_role,
-                "user_role": self.user_role,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "session_id": self.session_id
-            })
+            if sender == "bot":
+                self.conversation_history.append({
+                    "speaker": sender,
+                    "message": message,
+                    "emotion": self.current_emotion,
+                    "turn_count": self.turn_count,
+                    "bot_role": self.bot_role,
+                    "user_role": self.user_role,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "session_id": self.session_id
+                })
 
             if sio.connected:
                 print(f"[BOT] Emitting message: {message[:50]}... from {sender} for session {self.session_id}")
@@ -785,13 +779,22 @@ class ConversationBot:
         conversation_rounds = 0
         max_rounds = 5  # Limit conversation to prevent infinite loops
         
-        # Start with issue selection phase
-        print(f"[BOT] Starting issue selection phase")
-        if not self.issue_selection_phase():
-            print(f"[BOT] Issue selection phase failed, ending conversation")
-            return
+        # Start directly as speaker with bot's own topic
+        print(f"[BOT] Starting directly as speaker with open-ended topic")
+        self.bot_role = "speaker"
+        self.user_role = "listener"
         
-        print(f"[BOT] Issue selection completed, starting conversation rounds")
+        # Remove hardcoded topic, keep it open
+        self.selected_issue = None
+        
+        print(f"[BOT] Bot's topic is open-ended.")
+        
+        # Send introduction message
+        self.send_and_wait("Hi, I'm Charisma Bot. Today we'll practice the Speaker-Listener Technique")
+        self.add_natural_pause("introduction")
+        
+        print(f"[BOT] Starting conversation rounds")
+        
         while conversation_rounds < max_rounds:
             print(f"[BOT] Starting conversation round {conversation_rounds + 1}/{max_rounds}")
             
@@ -1104,9 +1107,10 @@ Only return the clean summary, nothing else."""
             import traceback
             print(f"[ERROR] Traceback: {traceback.format_exc()}")
 
-    def signal_handler(sig, frame):
-        print("\n[INFO] Exiting gracefully... Saving conversation.")
-        bot.save_conversation()
+    def signal_handler(self, sig, frame):
+        """Handle Ctrl + C to save conversation before exiting."""
+        print(f"\n[INFO] Session {self.session_id}: Exiting gracefully... Saving conversation.")
+        self.save_conversation()
         sys.exit(0)
 
     def main_loop(self):
@@ -1307,9 +1311,6 @@ Only return the clean summary, nothing else."""
             elif text_lower.startswith('i want you to know'):
                 content = text_lower[18:].strip()
                 return f"It sounds like you want me to understand that {content}."
-            elif text_lower.startswith('i have been'):
-                content = text_lower[12:].strip()
-                return f"I hear you saying that you've been {content}."
             elif text_lower.startswith('i am ') or text_lower.startswith("i'm "):
                 if text_lower.startswith("i'm "):
                     content = text_lower[4:].strip()
@@ -1333,6 +1334,8 @@ Only return the clean summary, nothing else."""
                 return f"It sounds like you're expressing that you love {content}."
             elif text_lower.startswith('i don\'t know'):
                 content = text_lower[12:].strip()
+                # Transform "how i will do" to "how you will do"
+                content = content.replace('i will', 'you will').replace('i can', 'you can').replace('i am', 'you are')
                 return f"I understand you're feeling uncertain about {content}."
             elif text_lower.startswith('i don\'t'):
                 content = text_lower[7:].strip()
@@ -1342,8 +1345,26 @@ Only return the clean summary, nothing else."""
             else:
                 # Generic transformation that changes structure and ensures pronoun transformation
                 transformed = text_lower.replace('i ', 'you ').replace('my ', 'your ').replace(' me ', ' you ').replace(' me.', ' you.').replace(' me,', ' you,')
-                # Clean up any awkward constructions
+                # Additional pronoun transformations
+                transformed = transformed.replace('i will', 'you will').replace('i can', 'you can').replace('i don\'t', 'you don\'t')
+                # Clean up any awkward constructions and repeated words
                 transformed = transformed.replace('you am', 'you are').replace('you\'m', 'you\'re')
+                # Fix repeated words like "you you you"
+                import re
+                transformed = re.sub(r'\b(\w+)(\s+\1)+\b', r'\1', transformed)
+                # Ensure proper capitalization - capitalize first word and after periods
+                if transformed:
+                    # Split into sentences and capitalize each
+                    sentences = transformed.split('. ')
+                    capitalized_sentences = []
+                    for sentence in sentences:
+                        if sentence:
+                            sentence = sentence.strip()
+                            if sentence and not sentence[0].isupper():
+                                sentence = sentence[0].upper() + sentence[1:]
+                            capitalized_sentences.append(sentence)
+                    transformed = '. '.join(capitalized_sentences)
+                    
                 return f"What I'm hearing is that {transformed}."
                 
         except Exception as e:

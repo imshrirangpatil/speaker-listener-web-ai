@@ -98,6 +98,11 @@ class ConversationBot:
         self.listener_turns_completed = 0  # Track listener turns
         self.introduced = False  # Track if the bot has introduced itself
         self.role_explained = False  # Track if role explanations have been given
+        self.waiting_for_user_input = False
+        self.user_input_received = None
+        self.audio_finished = False
+        self.current_i_statement = ""
+        self.conversation_saved = False  # Flag to prevent duplicate saves
 
         # Connect to SocketIO server with session ID
         self.connect_to_server()
@@ -105,8 +110,6 @@ class ConversationBot:
         sio.on("bot_audio_ended", self.on_audio_finished)
         sio.on("user_input", self.on_user_input)
         self.waiting_for_audio_end = False
-        self.waiting_for_user_input = False
-        self.user_input_received = None
 
     def connect_to_server(self):
         """Connect to SocketIO server with session ID"""
@@ -276,6 +279,7 @@ class ConversationBot:
                     
                 if self.is_goodbye(user_input):
                     self.send_and_wait("Goodbye! Thanks for practicing with me.")
+                    self.save_conversation()  # Save conversation before ending
                     return False
                     
                 self.current_emotion = detect_emotion(user_input)
@@ -444,6 +448,7 @@ class ConversationBot:
             
             if self.is_goodbye(user_response):
                 self.send_and_wait("Goodbye! Thanks for practicing with me.")
+                self.save_conversation()  # Save conversation before ending
                 return False
             
             # Check if user's paraphrase is accurate
@@ -812,9 +817,15 @@ Only return the statement, nothing else.'''
         if conversation_rounds >= max_rounds:
             self.send_and_wait("Thank you for this wonderful conversation! Let's wrap up here.")
             print("[BOT] Conversation completed - reached maximum rounds")
+            self.save_conversation()  # Save conversation when max rounds reached
         
-        # Removed save_conversation() - it's handled by problem_solving_phase at conversation end
+        # Save conversation as safety net if not already saved
         print(f"[BOT] Integrated mode completed for session {self.session_id}")
+        if not self.conversation_saved:
+            print(f"[BOT] Safety save: Ensuring conversation is saved for session {self.session_id}")
+            self.save_conversation()  # Ensure conversation is always saved at the end
+        else:
+            print(f"[BOT] Conversation already saved for session {self.session_id}")
 
     def issue_selection_phase(self):
         try:
@@ -1085,6 +1096,11 @@ Only return the clean summary, nothing else."""
 
     def save_conversation(self):
         """Save conversation to local file and Firebase with enhanced metadata"""
+        # Prevent duplicate saves
+        if self.conversation_saved:
+            print(f"[INFO] Conversation already saved for session {self.session_id}")
+            return
+            
         try:
             # Ensure data directory exists
             os.makedirs(CONVERSATION_DIR, exist_ok=True)
@@ -1131,6 +1147,10 @@ Only return the clean summary, nothing else."""
                 print(f"[FIREBASE] Session also saved to sessions collection: {sessions_doc_id}")
             else:
                 print("[FIREBASE] Firebase not available - skipping cloud save")
+            
+            # Mark as saved to prevent duplicates
+            self.conversation_saved = True
+            print(f"[INFO] Conversation save completed for session {self.session_id}")
                 
         except Exception as e:
             print(f"[ERROR] Failed to save conversation: {e}")

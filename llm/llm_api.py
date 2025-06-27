@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from config import LLM_CONFIG
 
-load_dotenv()  # Load API keys from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 class LLMApi:
     def __init__(self, provider="openai"):

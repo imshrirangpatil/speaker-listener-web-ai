@@ -4,6 +4,8 @@ import os
 import io
 import openai
 from config import OPENAI_API_KEY
+from dotenv import load_dotenv
+load_dotenv()
 
 # Ensure your OPENAI_API_KEY is set
 if not OPENAI_API_KEY:

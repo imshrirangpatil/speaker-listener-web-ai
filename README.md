@@ -2,7 +2,6 @@
 
 CharismaBot is a conversational AI system that implements the Speaker-Listener Technique using voice input, emotion detection, and large language models.
 
-Repository: [https://github.com/imshrirangpatil/speaker-listener-web-ai](https://github.com/imshrirangpatil/speaker-listener-web-ai)
 
 # CounselorProject
 
@@ -43,42 +42,54 @@ Web Application (work in progress)
 
 ## 5. Known bugs
 
-* Sometimes the voice recording will stop if there is not voice for a period of time
+* The app is in the beta phase, please create a GitHub issue in case your encounter any bug.
 
 # Project Structure
 
 ```
-.
-├── bot/
-│   ├── __init__.py
-│   ├── character_manager.py
-│   ├── conversation_bot.py
-│   ├── emotion_detector.py
-│   └── response_generator.py
-│
-├── llm/
-│   ├── __init__.py
-│   ├── llm_api.py
-│   ├── test_chatgpt_openai.py
-│   ├── test_deep_seek.py
-│   ├── test_gemini_google.py
-│   └── test_grok_xai.py
-│
-├── speech/
-│   ├── __init__.py
-│   ├── speech_detector.py
-│   ├── speech_handler.py
-│   ├── speech_model.py
-│   ├── speech_recognition_service.py
-│   └── tts_outputs/
-│
-├── templates/
-│   └── index.html
-│
-├── .gitignore
-├── README.md
 ├── app.py
+├── bot
+│   ├── __init__.py
+│   ├── character_manager.py
+│   ├── conversation_bot.py
+│   ├── emotion_detector.py
+│   └── response_generator.py
 ├── config.py
+├── Dockerfile
+├── Dockerfile.vosk
+├── llm
+│   ├── __init__.py
+│   ├── llm_api.py
+│   └── test_chatgpt_openai.py
 ├── main.py
-└── requirements.txt
+├── Procfile
+├── README.md
+├── render.yaml
+├── requirements.txt
+├── speech
+│   ├── __init__ .py
+│   ├── groq_stt_tts.py
+│   ├── openai_transcription_service.py
+│   ├── speech_detector.py
+│   ├── speech_handler.py
+│   ├── speech_model.py
+│   └── speech_recognition_service.py
+├── start.sh
+├── static
+│   ├── charisma-logo.png
+│   ├── css
+│   │   └── style.css
+│   └── js
+│       └── app.js
+├── templates
+│   ├── charisma.html
+│   ├── chat.html
+│   ├── index.html
+│   └── start.html
+├── test_incomplete_input.py
+├── test_speaker_listener.py
+├── test_tts.py
+├── vosk_server.py
+└── wsgi.py
+
 ```

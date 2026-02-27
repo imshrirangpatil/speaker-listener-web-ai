@@ -20,16 +20,6 @@ except ImportError:
     OPENAI_AVAILABLE = False
     openai_client = None
 
-# Remove Groq imports and configuration
-# GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-# client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
-# TTS_MODEL = "playai-tts"
-# TTS_VOICE = "Fritz-PlayAI"
-# TTS_RESPONSE_FORMAT = "wav"
-
-# STT_MODEL = "distil-whisper-large-v3-en"
-
 def groq_text_to_speech(text: str, return_bytes=False):
     """
     Converts text to speech using OpenAI TTS only.

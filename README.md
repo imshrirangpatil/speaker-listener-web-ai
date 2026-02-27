@@ -45,7 +45,7 @@ source ~/.bashrc # if bash terminal
 ```
 ### 2.2 run the main driver
 ```
-python main.py
+python app.py
 ```
 
 ## 3. How to use the software
@@ -53,7 +53,11 @@ python main.py
 Web Application (work in progress)
 
 * Open your preferred web browser.
-* Navigate to the localhost URL provided
+* Go to the following URL
+  ```
+  http://localhost:5050
+  ```
+* Choose the Character
 * Choose start the session
 * Follow the on screen instructions to use other features.
 

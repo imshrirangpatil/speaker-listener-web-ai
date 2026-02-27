@@ -1,0 +1,55 @@
+timestamp,participant_id,role,speaker,message,turn_type,message_type
+2025-02-02 14:21:00,P01,SPEAKER_PRACTICE,user,I came to this retreat very early this morning and I am feeling really good about it the mini poppers were fantastic and the moments have been really meaningful for me,speaker_statement,transcript
+2025-02-02 14:21:08,P01,SPEAKER_PRACTICE,bot,I hear you saying that you arrived early this morning and you are feeling really good about the retreat and the mini poppers and moments have been meaningful for you,listener_paraphrase,transcript
+2025-02-02 14:21:14,P01,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-02 14:21:18,P01,SPEAKER_PRACTICE,user,Yes that is correct,validation_response,transcript
+2025-02-02 14:21:25,P01,LISTENER_PRACTICE,bot,I feel grateful for the moments of stillness we have shared today and the insight that comes from being present with others in this space,speaker_statement,transcript
+2025-02-02 14:21:34,P01,LISTENER_PRACTICE,user,It sounds like you are feeling grateful for the moments of stillness we shared and you believe being present with others in this space brings insight,listener_paraphrase,transcript
+2025-02-02 14:21:40,P01,LISTENER_PRACTICE,user,Did I understand that correctly?,validation_request,system_prompt
+2025-02-02 14:21:44,P01,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript
+2025-02-02 14:28:30,P02,SPEAKER_PRACTICE,user,My experience with the retreat has been pretty good so far I think we definitely need to iron out some of the timings because there was a lot of troubleshooting and standing around but I would say it has been pretty enjoyable and successful,speaker_statement,transcript
+2025-02-02 14:28:40,P02,SPEAKER_PRACTICE,bot,I hear you saying that your experience has been pretty good but you think the timing needs to be improved because there was troubleshooting and standing around yet overall you found it enjoyable and successful,listener_paraphrase,transcript
+2025-02-02 14:28:49,P02,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-02 14:28:53,P02,SPEAKER_PRACTICE,user,Yes that is exactly right,validation_response,transcript
+2025-02-02 14:29:00,P02,LISTENER_PRACTICE,bot,I think that working through challenges together as a team strengthens our ability to adapt and improve for next time,speaker_statement,transcript
+2025-02-02 14:29:08,P02,LISTENER_PRACTICE,user,It sounds like you believe that when we face challenges together as a team it builds our ability to adapt and do better next time,listener_paraphrase,transcript
+2025-02-02 14:29:16,P02,LISTENER_PRACTICE,user,Is that right,validation_request,system_prompt
+2025-02-02 14:29:20,P02,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript
+2025-02-22 14:36:00,P03,SPEAKER_PRACTICE,user,I am very interested in this retreat and it has been awesome I went to share about my meditation experience and it has been so much better than I expected,speaker_statement,transcript
+2025-02-22 14:36:09,P03,SPEAKER_PRACTICE,bot,I hear you saying that you are very interested in this retreat it has been awesome and your meditation experience has been so much better than what you expected,listener_paraphrase,transcript
+2025-02-22 14:36:17,P03,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-22 14:36:21,P03,SPEAKER_PRACTICE,user,Yes that is correct,validation_response,transcript
+2025-02-22 14:36:28,P03,LISTENER_PRACTICE,bot,I feel a sense of peace in the stillness and I observe the ebb and flow of my thoughts with acceptance and without judgment,speaker_statement,transcript
+2025-02-22 14:36:37,P03,LISTENER_PRACTICE,user,It sounds like you feel peaceful in the stillness and you observe your thoughts coming and going with acceptance and without judging them,listener_paraphrase,transcript
+2025-02-22 14:36:45,P03,LISTENER_PRACTICE,user,Did I get that right,validation_request,system_prompt
+2025-02-22 14:36:49,P03,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript
+2025-02-22 14:42:30,P04,SPEAKER_PRACTICE,user,I am at this meditation retreat and I feel really present right now The activities have been helping me to focus and I am grateful for the time to reflect on things that matter to me,speaker_statement,transcript
+2025-02-22 14:42:40,P04,SPEAKER_PRACTICE,bot,What I understand is that you are present right now at this meditation retreat the activities have been helping you focus and you are grateful for the time to reflect on what matters to you,listener_paraphrase,transcript
+2025-02-22 14:42:50,P04,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-22 14:42:54,P04,SPEAKER_PRACTICE,user,Yes that is correct,validation_response,transcript
+2025-02-22 14:43:01,P04,LISTENER_PRACTICE,bot,I believe that when we take time to listen deeply to ourselves and others we create space for understanding and connection that goes beyond words,speaker_statement,transcript
+2025-02-22 14:43:11,P04,LISTENER_PRACTICE,user,It sounds like you believe that taking time to listen deeply to ourselves and others creates space for understanding and connection that goes beyond just words,listener_paraphrase,transcript
+2025-02-22 14:43:20,P04,LISTENER_PRACTICE,user,Is that right,validation_request,system_prompt
+2025-02-22 14:43:24,P04,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript
+2025-02-02 14:33:15,P05,SPEAKER_PRACTICE,user,I am feeling a bit overwhelmed with all the mindful movement exercises the breathing is good but I got kind of confused during the stretching sequence,speaker_statement,transcript
+2025-02-02 14:33:25,P05,SPEAKER_PRACTICE,bot,I hear you saying that you did mindful movement exercises and stretching sequences,listener_paraphrase,transcript
+2025-02-02 14:33:35,P05,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-02 14:33:40,P05,SPEAKER_PRACTICE,user,Not really that is close but not quite You missed that I was feeling overwhelmed,validation_response_negative,transcript
+2025-02-02 14:33:48,P05,SPEAKER_PRACTICE,bot,Thanks for letting me know. Please say it again in a way that feels more accurate.,retry_prompt,system_prompt
+2025-02-02 14:33:55,P05,SPEAKER_PRACTICE,user,Yeah so the issue is I felt overwhelmed by the stretching part because I could not follow the movements,speaker_statement_retry,transcript
+2025-02-02 14:34:05,P05,SPEAKER_PRACTICE,bot,I hear you saying that you felt overwhelmed during the stretching exercises because you could not follow the movements,listener_paraphrase_retry,transcript
+2025-02-02 14:34:12,P05,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-02 14:34:16,P05,SPEAKER_PRACTICE,user,Yes that is right now,validation_response,transcript
+2025-02-02 14:34:25,P05,LISTENER_PRACTICE,bot,I find myself noticing the rhythm of my breathing and how it connects my body to this moment in time,speaker_statement,transcript
+2025-02-02 14:34:35,P05,LISTENER_PRACTICE,user,It sounds like you notice your breathing and how it helps you stay present in this moment,listener_paraphrase,transcript
+2025-02-02 14:34:42,P05,LISTENER_PRACTICE,user,Is that correct,validation_request,system_prompt
+2025-02-02 14:34:46,P05,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript
+2025-02-22 14:49:00,P06,SPEAKER_PRACTICE,user,I feel much awesome and the rain meditation was like peaceful moments and things that help me with the focus,speaker_statement,transcript
+2025-02-22 14:49:10,P06,SPEAKER_PRACTICE,bot,I hear you saying that you feel awesome and the rain meditation gave you peaceful moments that help you focus,listener_paraphrase,transcript
+2025-02-22 14:49:18,P06,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-02-22 14:49:22,P06,SPEAKER_PRACTICE,user,Mostly yes but I meant the rain sounds helped more than just the meditation itself,validation_response_partial,transcript
+2025-02-22 14:49:30,P06,SPEAKER_PRACTICE,bot,Thanks. Let's continue.,acknowledgment,system_prompt
+2025-02-22 14:49:40,P06,LISTENER_PRACTICE,bot,I think the sounds of nature like rain or wind help me to remember that my mind is like the weather always changing,speaker_statement,transcript
+2025-02-22 14:49:50,P06,LISTENER_PRACTICE,user,So you are saying that natural sounds remind you that your mind changes like the weather,listener_paraphrase,transcript
+2025-02-22 14:49:58,P06,LISTENER_PRACTICE,user,Is that correct,validation_request,system_prompt
+2025-02-22 14:50:02,P06,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,transcript

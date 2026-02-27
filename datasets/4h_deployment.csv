@@ -1,0 +1,76 @@
+timestamp,participant_id,role,speaker,message,turn_type,message_type
+2025-06-27 15:32:15,Y01,SPEAKER_PRACTICE,user,I came to this four h conference pretty early today and I am feeling really good about it The activities have been fantastic and the conversations with my friends have been really meaningful for me,speaker_statement,transcript
+2025-06-27 15:32:24,Y01,SPEAKER_PRACTICE,bot,I hear you saying that you came to the four h conference early this morning and you are feeling really good about it and the activities and conversations with friends have been meaningful for you,listener_paraphrase,transcript
+2025-06-27 15:32:31,Y01,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:32:36,Y01,SPEAKER_PRACTICE,user,Yes that is correct,validation_response,transcript
+2025-06-27 15:32:45,Y01,LISTENER_PRACTICE,bot,I think working together with other four hers from different clubs has helped me learn that we all have different ideas and bringing them together makes projects better,speaker_statement,transcript
+2025-06-27 15:32:54,Y01,LISTENER_PRACTICE,user,It sounds like you believe that when we work together as four hers and bring our different ideas together it makes projects stronger and better,listener_paraphrase,transcript
+2025-06-27 15:33:02,Y01,LISTENER_PRACTICE,user,Did I understand that correctly?,validation_request,system_prompt
+2025-06-27 15:33:08,Y01,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 15:38:20,Y02,SPEAKER_PRACTICE,user,I have been doing four h for like three years now and I like how the leadership stuff challenges you But there is a lot of talking and I got kind of confused during some of the group discussions because everyone was talking over each other,speaker_statement,transcript
+2025-06-27 15:38:30,Y02,SPEAKER_PRACTICE,bot,I hear you saying that you have been in four h for three years and you like the leadership part,listener_paraphrase,transcript
+2025-06-27 15:38:37,Y02,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:38:44,Y02,SPEAKER_PRACTICE,user,Not really I also meant that I felt confused when everyone was talking over each other,validation_response_negative,transcript
+2025-06-27 15:38:52,Y02,SPEAKER_PRACTICE,bot,Thanks for letting me know. Please say it again in a way that feels more accurate.,retry_prompt,system_prompt
+2025-06-27 15:38:59,Y02,SPEAKER_PRACTICE,user,Yeah so the main issue was when we were all talking and I could not follow the conversation because people were interrupting each other,speaker_statement_retry,transcript
+2025-06-27 15:39:08,Y02,SPEAKER_PRACTICE,bot,I hear you saying that you felt confused and could not follow the conversation because people were interrupting each other,listener_paraphrase_retry,transcript
+2025-06-27 15:39:15,Y02,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:39:22,Y02,SPEAKER_PRACTICE,user,Yes that is right now,validation_response,transcript
+2025-06-27 15:39:31,Y02,LISTENER_PRACTICE,bot,I think the value of speaking up even when you are nervous is that you get to share your ideas and people learn from you,speaker_statement,transcript
+2025-06-27 15:39:40,Y02,LISTENER_PRACTICE,user,It sounds like you believe that when you speak up even if you are nervous you get to share your ideas and other people learn from what you say,listener_paraphrase,transcript
+2025-06-27 15:39:47,Y02,LISTENER_PRACTICE,user,Is that right,validation_request,system_prompt
+2025-06-27 15:39:54,Y02,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 15:45:10,Y03,SPEAKER_PRACTICE,user,I am really interested in robotics and this conference has been awesome I went to some tech workshops and they have been so much better than I expected like the robots actually work,speaker_statement,transcript
+2025-06-27 15:45:19,Y03,SPEAKER_PRACTICE,bot,I hear you saying that you are interested in robotics the conference has been awesome and the tech workshops were better than expected and you got to see robots working,listener_paraphrase,transcript
+2025-06-27 15:45:26,Y03,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:45:33,Y03,SPEAKER_PRACTICE,user,Yes that is correct,validation_response,transcript
+2025-06-27 15:45:42,Y03,LISTENER_PRACTICE,bot,I feel excited when I learn something new about technology and I see how it connects to real problems that need solving,speaker_statement,transcript
+2025-06-27 15:45:51,Y03,LISTENER_PRACTICE,user,It sounds like you feel excited when you learn new technology stuff and you see how it can actually solve real problems in the world,listener_paraphrase,transcript
+2025-06-27 15:45:58,Y03,LISTENER_PRACTICE,user,Did I get that right,validation_request,system_prompt
+2025-06-27 15:46:05,Y03,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 15:51:30,Y04,SPEAKER_PRACTICE,user,I am at this four h conference and I feel really focused right now The activities have been helping me concentrate better and I am grateful for the time to think about things that matter to me like my goals and stuff,speaker_statement,transcript
+2025-06-27 15:51:39,Y04,SPEAKER_PRACTICE,bot,What I understand is that you are focused right now at this four h conference the activities have helped you concentrate better and you are grateful for time to think about things that matter to you,listener_paraphrase,transcript
+2025-06-27 15:51:46,Y04,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:51:53,Y04,SPEAKER_PRACTICE,user,Mostly yes but I also mentioned I think about my goals specifically not just general things,validation_response_partial,transcript
+2025-06-27 15:52:00,Y04,SPEAKER_PRACTICE,bot,Thanks. Let's continue.,acknowledgment,system_prompt
+2025-06-27 15:52:09,Y04,LISTENER_PRACTICE,bot,I believe that when we listen carefully to others even when we disagree we can still find common ground and respect each other,speaker_statement,transcript
+2025-06-27 15:52:18,Y04,LISTENER_PRACTICE,user,It sounds like you believe that when we listen carefully to each other and we might disagree we can find common ground and still respect one another,listener_paraphrase,transcript
+2025-06-27 15:52:25,Y04,LISTENER_PRACTICE,user,Is that right,validation_request,system_prompt
+2025-06-27 15:52:32,Y04,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 15:57:45,Y05,SPEAKER_PRACTICE,user,I like this camp because I have made friends from other counties and learned about leadership Sometimes the workshops are hard to keep up with but overall I think it is a really positive experience,speaker_statement,transcript
+2025-06-27 15:57:54,Y05,SPEAKER_PRACTICE,bot,I hear you saying that you like this camp and made friends and learned leadership and overall it is positive,listener_paraphrase,transcript
+2025-06-27 15:58:01,Y05,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:58:08,Y05,SPEAKER_PRACTICE,user,Sort of but you did not mention that some parts are hard to keep up with,validation_response_negative,transcript
+2025-06-27 15:58:15,Y05,SPEAKER_PRACTICE,bot,Thanks for letting me know. Please say it again in a way that feels more accurate.,retry_prompt,system_prompt
+2025-06-27 15:58:22,Y05,SPEAKER_PRACTICE,user,Yeah so I like making friends and learning about leadership but some of the workshops move really fast and I have to focus hard to understand everything,speaker_statement_retry,transcript
+2025-06-27 15:58:31,Y05,SPEAKER_PRACTICE,bot,I hear you saying that you like making friends and learning leadership but some workshops move fast and you have to focus hard to keep up,listener_paraphrase_retry,transcript
+2025-06-27 15:58:38,Y05,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 15:58:45,Y05,SPEAKER_PRACTICE,user,Yes that is right,validation_response,transcript
+2025-06-27 15:58:54,Y05,LISTENER_PRACTICE,bot,I value the times when I can help someone learn something new and they actually get excited about it,speaker_statement,transcript
+2025-06-27 15:59:03,Y05,LISTENER_PRACTICE,user,It sounds like you value when you can help someone learn something new and they get excited about what they are learning,listener_paraphrase,transcript
+2025-06-27 15:59:10,Y05,LISTENER_PRACTICE,user,Is that correct,validation_request,system_prompt
+2025-06-27 15:59:17,Y05,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 16:03:55,Y06,SPEAKER_PRACTICE,user,I think it is cool that we are using AI for this exercise Like I was wondering if the bot actually understands what we are saying or if it is just pattern matching The paraphrasing seems pretty good though,speaker_statement,transcript
+2025-06-27 16:04:04,Y06,SPEAKER_PRACTICE,bot,I hear you saying that you think it is cool to use AI for this exercise and you are curious about whether the bot understands or just pattern matches but the paraphrasing seems to work well,listener_paraphrase,transcript
+2025-06-27 16:04:11,Y06,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 16:04:18,Y06,SPEAKER_PRACTICE,user,Yeah exactly that is what I was thinking,validation_response,transcript
+2025-06-27 16:04:27,Y06,LISTENER_PRACTICE,bot,I think that speaking your thoughts out loud even when they are not perfect helps you understand yourself better and connects you with other people,speaker_statement,transcript
+2025-06-27 16:04:36,Y06,LISTENER_PRACTICE,user,So you are saying that speaking your thoughts aloud even if they are not perfect helps you understand yourself better and connects you with others,listener_paraphrase,transcript
+2025-06-27 16:04:43,Y06,LISTENER_PRACTICE,user,Is that correct,validation_request,system_prompt
+2025-06-27 16:04:50,Y06,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 16:09:10,Y07,SPEAKER_PRACTICE,user,This is my first big four h thing like this and I was kinda nervous but everyone is really nice My friends are here so that made it easier The activities are fun and I like learning about different stuff from people,speaker_statement,transcript
+2025-06-27 16:09:19,Y07,SPEAKER_PRACTICE,bot,It sounds like this is your first big four h event and you were nervous at first but everyone is nice and having your friends here made it easier and you are having fun and learning,listener_paraphrase,transcript
+2025-06-27 16:09:26,Y07,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 16:09:33,Y07,SPEAKER_PRACTICE,user,Yes You got it,validation_response,transcript
+2025-06-27 16:09:42,Y07,LISTENER_PRACTICE,bot,I feel happy when I see young people discovering their interests and finding confidence to try new things,speaker_statement,transcript
+2025-06-27 16:09:51,Y07,LISTENER_PRACTICE,user,You feel happy when you see young people like discovering their interests and getting the confidence to try new things,listener_paraphrase,transcript
+2025-06-27 16:09:58,Y07,LISTENER_PRACTICE,user,Did I get that right,validation_request,system_prompt
+2025-06-27 16:10:05,Y07,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt
+2025-06-27 16:14:25,Y08,SPEAKER_PRACTICE,user,So honestly like the food here is actually pretty decent which like surprised me And I like that we get to go back and forth between doing peer stuff and talking to the AI Like it is weird in a good way I do not know how else to describe it,speaker_statement,transcript
+2025-06-27 16:14:34,Y08,SPEAKER_PRACTICE,bot,I hear you saying that you were surprised the food is good and you like switching between talking with peers and talking to the AI and it feels weird in a good way,listener_paraphrase,transcript
+2025-06-27 16:14:41,Y08,SPEAKER_PRACTICE,bot,Did I understand you correctly?,validation_request,system_prompt
+2025-06-27 16:14:48,Y08,SPEAKER_PRACTICE,user,Haha yes basically,validation_response,transcript
+2025-06-27 16:14:57,Y08,LISTENER_PRACTICE,bot,I think that mixing human connection with technology in the right way can create experiences that neither one could do alone,speaker_statement,transcript
+2025-06-27 16:15:06,Y08,LISTENER_PRACTICE,user,So like you are saying that when you combine human connection with technology in the right way you get experiences that neither one could make on its own,listener_paraphrase,transcript
+2025-06-27 16:15:13,Y08,LISTENER_PRACTICE,user,Is that right,validation_request,system_prompt
+2025-06-27 16:15:20,Y08,LISTENER_PRACTICE,bot,"Yes, that is correct. Let's continue.",validation_response,system_prompt

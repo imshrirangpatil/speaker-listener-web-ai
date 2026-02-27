@@ -61,12 +61,21 @@ Web Application (work in progress)
 * Choose start the session
 * Follow the on screen instructions to use other features.
 
-## 4. Support & Questions
+# 4. Datasets
+
+This repo includes two deployment datasets in CSV format:
+
+- `datasets/4h_deployment.csv`
+- `datasets/meditation_retreat.csv`
+
+Columns: `timestamp, participant_id, role, speaker, message, turn_type, message_type`.
+
+## 5. Support & Questions
 
 * Open a GitHub Issue.
 * Reach out to the maintainers via [isweesin@oregonstate.edu](mailto:isweesin@oregonstate.edu) or [patilshr@oregonstate.edu](mailto:patilshr@oregonstate.edu)
 
-## 5. Known bugs
+## 6. Known bugs
 
 * The app is in the beta phase, please create a GitHub issue in case your encounter any bug.
 

@@ -17,3 +17,4 @@ numpy
 gunicorn
 requests
 httpx
+torch

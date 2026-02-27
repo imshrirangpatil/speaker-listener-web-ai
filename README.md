@@ -14,7 +14,16 @@ git clone https://github.com/imshrirangpatil/speaker-listener-web-ai.git
 cd speaker-listener-web-ai
 ```
 
-### 1.2 paste the following after that
+### 1.2 creatre a virtual environment
+```
+python -m venv charisma
+source charisma/bin/activate # macOs or Linux
+charisma/Scripts\activate # Windows
+
+```
+
+
+### 1.3 paste the following after that
 
 ```
 pip install -r requirements.txt

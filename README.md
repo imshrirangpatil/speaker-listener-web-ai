@@ -55,7 +55,7 @@ Web Application (work in progress)
 * Open your preferred web browser.
 * Go to the following URL
   ```
-  http://localhost:5050
+  http://localhost:5000
   ```
 * Choose the Character
 * Choose start the session

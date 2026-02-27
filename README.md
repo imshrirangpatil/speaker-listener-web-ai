@@ -31,6 +31,19 @@ pip install -r requirements.txt
 
 ## 2. How to run the software
 
+### 2.1 enter the API to your provider
+```
+echo 'export OPENAI_API_KEY='YOUR_OPENAI_KEY''  >> ~/.zshrc  # can be any of the following:
+* OPENAI_API_KEY (default)
+* GROK_API_KEY
+* DEEPSEEK_API-KEY
+* GEMINI_API_KEY
+```
+```
+source ~/.zshrc # if zsh terminal
+source ~/.bashrc # if bash terminal
+```
+### 2.2 run the main driver
 ```
 python main.py
 ```
